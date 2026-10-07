@@ -85,7 +85,9 @@
   const render = (focusHeading) => {
     const question = data.questions[index];
     progress.value = index + 1;
-    progressLabel.textContent = (index + 1) + ' / ' + data.questions.length;
+    progressLabel.textContent = copy.progress_item_label
+      ? copy.progress_item_label + ' ' + (index + 1) + ' ' + (copy.progress_of_label || '/') + ' ' + data.questions.length
+      : (index + 1) + ' / ' + data.questions.length;
     next.replaceChildren(document.createTextNode((index === data.questions.length - 1 ? copy.complete_label || 'View result' : copy.next_label || 'Next') + ' '));
     const arrow = document.createElement('span');
     arrow.setAttribute('aria-hidden', 'true');
@@ -101,7 +103,7 @@
     const meta = document.createElement('div');
     meta.className = 'sie-question-meta';
     const section = document.createElement('span');
-    section.textContent = question.section;
+    section.textContent = (copy.section_prefix ? copy.section_prefix + ' ' : '') + question.section;
     const sectionLabel = document.createElement('strong');
     sectionLabel.textContent = question.section_label;
     meta.append(section, sectionLabel);

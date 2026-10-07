@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.2', 'plugin version is 0.9.2');
+$check(($manifest['version'] ?? null) === '0.9.3', 'plugin version is 0.9.3');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -99,7 +99,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.2'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.3'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -154,6 +154,7 @@ $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
 $presentationSaveSource = (string)file_get_contents($root . '/admin/result-page/save.php');
 $publicResultSource = (string)file_get_contents($root . '/public/index.php');
 $publicResultStyles = (string)file_get_contents($root . '/assets/frontend.css');
+$frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
 $check(str_contains($presentationSaveSource, 'csrf_check')
     && str_contains($presentationSaveSource, 'authorization_lock_actor_permissions')
     && str_contains($presentationSaveSource, 'expected_hash')
@@ -168,6 +169,11 @@ $check(str_contains($publicResultSource, 'direct_recommendation_limit')
     && str_contains($publicResultSource, "elseif (\$sectionState('interpretation') === 'mask')"), 'public result respects the immutable direction limit and masks optional sections without existence disclosure');
 $check(str_contains($publicResultSource, '$assessmentTitle')
     && str_contains($publicResultSource, '$assessmentDescription'), 'public assessment identity comes from dashboard-managed configuration');
+$check(str_contains($publicResultSource, "'EKSPLORASI, BUKAN UJIAN'")
+    && str_contains($publicResultSource, "'Pertanyaan'")
+    && str_contains($publicResultSource, "'HASIL EKSPLORASIMU'")
+    && str_contains($publicResultSource, "\$legacyConfiguration ? 'id' : 'en'")
+    && str_contains($frontendSource, 'copy.progress_item_label'), 'historical schema-v1 public copy remains backward compatible');
 $participantEditSource = (string)file_get_contents($root . '/admin/participants/edit.php');
 $participantSaveSource = (string)file_get_contents($root . '/admin/participants/save.php');
 $check(str_contains($participantEditSource, 'expected_contact_hash')
@@ -175,7 +181,6 @@ $check(str_contains($participantEditSource, 'expected_contact_hash')
     && str_contains($participantSaveSource, 'hash_equals'), 'participant edits reject stale identity and consent snapshots');
 $publicQuestionSource = (string)file_get_contents($root . '/includes/helpers.php');
 $check(!str_contains($publicQuestionSource, 'option_scores s ON'), 'public question loader does not expose hidden scores');
-$frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
 $check(str_contains($frontendSource, 'firstUnanswered < 0 ? data.questions.length - 1')
     && str_contains($frontendSource, 'else answers[String(question.id)] = previous;'), 'frontend resumes at the final answered question and reverts failed autosaves');
 $startSource = (string)file_get_contents($root . '/public/api/start.php');
