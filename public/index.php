@@ -5,52 +5,129 @@ header('Cache-Control: no-store, private');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self'");
-$page_title = 'Study Interest Explorer';
+$page_title = 'Peta Minat Studi';
+$page_language = 'id';
+$page_class = 'sie-page';
+
 if (!function_exists('stateless_csrf_token')) {
     http_response_code(503);
-    $content_html = '<main class="sie-shell"><div class="sie-card"><h1>Service unavailable</h1><p>The required security service is unavailable.</p></div></main>';
+    $page_class .= ' sie-state-page';
+    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">LAYANAN TIDAK TERSEDIA</p><h1>Eksplorasi belum dapat dimulai.</h1><p>Layanan keamanan yang dibutuhkan sedang tidak tersedia. Silakan coba kembali beberapa saat lagi.</p></main>';
     require __DIR__ . '/layout.php';
     return;
 }
+
 $csrf = stateless_csrf_token();
 $publicId = trim((string)($_GET['session'] ?? ''));
 $session = $publicId !== '' ? study_interest_session($pdo, $publicId) : null;
 
 if ($publicId !== '' && $session === null) {
     http_response_code(404);
-    $content_html = '<main class="sie-shell"><div class="sie-card"><h1>Session unavailable</h1><p>This private session is unavailable in the current browser.</p><a class="sie-button" href="/study-interest/">Start a new exploration</a></div></main>';
+    $page_class .= ' sie-state-page';
+    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">SESI PRIVAT</p><h1>Sesi ini tidak tersedia di browser ini.</h1><p>Tautan hasil dilindungi oleh akses browser yang memulai eksplorasi.</p><a class="sie-button" href="/study-interest/">Mulai eksplorasi baru <span aria-hidden="true">&rarr;</span></a></main>';
 } elseif ($session !== null && (string)$session['status'] === 'completed') {
     $snapshot = json_decode((string)$session['result_snapshot_json'], true);
-    if (!is_array($snapshot)) throw new RuntimeException('Result snapshot is unavailable.');
-    $recommendations = '';
-    foreach ($snapshot['recommendations'] ?? [] as $program) {
-        $recommendations .= '<article class="sie-result-card"><span>#' . (int)$program['rank'] . '</span><h3>' . study_interest_h($program['label']) . '</h3>'
-            . '<strong>' . number_format((float)$program['score'], 2) . '/100</strong><p>' . study_interest_h($program['classification']) . '</p></article>';
+    if (!is_array($snapshot)) {
+        http_response_code(503);
+        $page_class .= ' sie-state-page';
+        $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">HASIL TIDAK TERSEDIA</p><h1>Hasil belum dapat ditampilkan.</h1><p>Data hasil sesi ini tidak dapat dibaca. Silakan hubungi pengelola layanan.</p></main>';
+    } else {
+        $page_class .= ' sie-result-page';
+        $recommendations = is_array($snapshot['recommendations'] ?? null) ? $snapshot['recommendations'] : [];
+        $dimensions = is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [];
+        $pathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
+        $interpretationItems = is_array($snapshot['interpretations'] ?? null) ? $snapshot['interpretations'] : [];
+        $dominantLabels = array_map(static fn(array $dimension): string => (string)($dimension['label'] ?? ''), array_slice($dimensions, 0, 3));
+        $dominantLabels = array_values(array_filter($dominantLabels, static fn(string $label): bool => $label !== ''));
+        $clarity = (string)($snapshot['profile_clarity']['code'] ?? 'OPEN');
+        $clarityText = match ($clarity) {
+            'PRACTICALLY_EQUAL', 'MULTIDISCIPLINARY' => (string)($snapshot['result_text']['multidisciplinary'] ?? 'Beberapa bidang layak kamu eksplorasi lebih jauh.'),
+            'VERY_CLEAR' => 'Arah minat teratasmu terlihat cukup jelas.',
+            'FAIRLY_CLEAR', 'SINGLE_DOMINANT' => 'Kamu sudah memiliki arah awal yang berguna untuk dieksplorasi.',
+            default => 'Profil minatmu masih terbuka ke beberapa arah.',
+        };
+        $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Indeks kecocokan minat');
+        ob_start();
+        ?>
+        <main class="sie-results">
+            <header class="sie-site-header sie-results-header">
+                <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></a>
+                <span class="sie-private-badge"><span aria-hidden="true"></span> Hasil privat</span>
+            </header>
+            <section class="sie-result-hero" aria-labelledby="sie-result-title">
+                <div>
+                    <p class="sie-kicker">HASIL EKSPLORASIMU</p>
+                    <h1 id="sie-result-title">Kenali pola minat yang paling menonjol.</h1>
+                    <p class="sie-result-lead"><?= study_interest_h($clarityText) ?></p>
+                </div>
+                <div class="sie-signal-map" aria-label="Tiga dimensi minat teratas">
+                    <?php foreach ($dominantLabels as $position => $label): ?>
+                        <div class="sie-signal sie-signal-<?= $position + 1 ?>"><span>0<?= $position + 1 ?></span><strong><?= study_interest_h($label) ?></strong></div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+
+            <section class="sie-result-section" aria-labelledby="sie-directions-title">
+                <div class="sie-section-heading">
+                    <div><p class="sie-kicker">ARAH BERIKUTNYA</p><h2 id="sie-directions-title">Bidang untuk dieksplorasi</h2></div>
+                    <p>Gunakan rekomendasi ini untuk mencari tahu isi studi, aktivitas, dan jalur lanjutannya.</p>
+                </div>
+                <div class="sie-results-grid">
+                    <?php if ($recommendations === []): ?>
+                        <article class="sie-empty-result">
+                            <span class="sie-empty-symbol" aria-hidden="true">+</span>
+                            <div><p class="sie-kicker">MASIH TERBUKA</p><h3><?= study_interest_h($snapshot['result_text']['no_dominant_title'] ?? 'Profil Minat Masih Terbuka') ?></h3><p><?= study_interest_h($snapshot['result_text']['no_dominant_body'] ?? '') ?></p></div>
+                        </article>
+                    <?php else: ?>
+                        <?php foreach ($recommendations as $program): ?>
+                            <article class="sie-result-card">
+                                <span class="sie-rank">0<?= (int)($program['rank'] ?? 0) ?></span>
+                                <h3><?= study_interest_h($program['label'] ?? '') ?></h3>
+                                <div class="sie-result-score"><strong><?= number_format((float)($program['score'] ?? 0), 1) ?></strong><span>/100</span></div>
+                                <p><?= study_interest_h($program['classification'] ?? '') ?></p>
+                            </article>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <p class="sie-score-note"><?= study_interest_h($scoreName) ?> menggambarkan kedekatan pola jawabanmu dengan tiap bidang, bukan peluang diterima atau ukuran kemampuan akademik.</p>
+            </section>
+
+            <section class="sie-dimensions" aria-labelledby="sie-dimensions-title">
+                <div class="sie-section-heading sie-section-heading-light">
+                    <div><p class="sie-kicker">PETA LENGKAP</p><h2 id="sie-dimensions-title">Delapan dimensi minat</h2></div>
+                    <p>Semakin panjang garisnya, semakin konsisten dimensi itu muncul dalam pilihanmu.</p>
+                </div>
+                <div class="sie-dimension-list">
+                    <?php foreach ($dimensions as $index => $dimension): ?>
+                        <?php $score = max(0, min(100, (float)($dimension['score'] ?? 0))); ?>
+                        <div class="sie-dimension">
+                            <div class="sie-dimension-label"><span><?= str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT) ?></span><strong><?= study_interest_h($dimension['label'] ?? '') ?></strong><b><?= number_format($score, 1) ?></b></div>
+                            <div class="sie-meter" role="progressbar" aria-label="<?= study_interest_h($dimension['label'] ?? '') ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= study_interest_h($score) ?>"><i style="width:<?= study_interest_h($score) ?>%"></i></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+
+            <?php if ($interpretationItems !== []): ?>
+                <section class="sie-insight" aria-labelledby="sie-insight-title"><p class="sie-kicker">BACA POLANYA</p><h2 id="sie-insight-title">Ketika beberapa hasil berdekatan</h2><?php foreach ($interpretationItems as $interpretation): ?><p><?= study_interest_h($interpretation) ?></p><?php endforeach; ?></section>
+            <?php endif; ?>
+
+            <?php foreach ($pathways as $pathwayIndex => $pathway): ?>
+                <section class="sie-pathway" aria-labelledby="sie-pathway-title-<?= (int)$pathwayIndex ?>"><div class="sie-pathway-marker" aria-hidden="true">P</div><div><p class="sie-kicker"><?= study_interest_h($snapshot['result_text']['professional_pathway'] ?? 'JALUR PROFESI') ?></p><h2 id="sie-pathway-title-<?= (int)$pathwayIndex ?>"><?= study_interest_h($pathway['label'] ?? '') ?></h2><p><?= study_interest_h($snapshot['result_text']['professional_pathway_body'] ?? '') ?></p></div></section>
+            <?php endforeach; ?>
+
+            <section class="sie-next-steps" aria-labelledby="sie-next-steps-title">
+                <div><p class="sie-kicker">JANGAN BERHENTI DI SKOR</p><h2 id="sie-next-steps-title">Ubah hasil ini menjadi percakapan.</h2></div>
+                <p>Cari tahu mata kuliah, jenis aktivitas, dan pengalaman nyata dari bidang yang menarik perhatianmu. Diskusikan hasil ini dengan orang yang memahami perjalanan belajarmu.</p>
+                <a class="sie-button sie-button-light" href="/study-interest/">Mulai eksplorasi baru <span aria-hidden="true">&rarr;</span></a>
+            </section>
+            <p class="sie-disclaimer"><?= study_interest_h($snapshot['result_text']['disclaimer'] ?? '') ?></p>
+        </main>
+        <?php
+        $content_html = (string)ob_get_clean();
     }
-    if ($recommendations === '') $recommendations = '<div class="sie-card"><h2>' . study_interest_h($snapshot['result_text']['no_dominant_title'] ?? 'Your interests remain open') . '</h2><p>' . study_interest_h($snapshot['result_text']['no_dominant_body'] ?? '') . '</p></div>';
-    $bars = '';
-    foreach ($snapshot['dimensions'] ?? [] as $dimension) {
-        $score = max(0, min(100, (float)$dimension['score']));
-        $bars .= '<div class="sie-bar"><div><span>' . study_interest_h($dimension['label']) . '</span><strong>' . number_format($score, 1) . '</strong></div><i><b style="width:' . $score . '%"></b></i></div>';
-    }
-    $pathways = '';
-    foreach ($snapshot['professional_pathways'] ?? [] as $pathway) $pathways .= '<div class="sie-card sie-pathway"><p class="sie-eyebrow">' . study_interest_h($snapshot['result_text']['professional_pathway'] ?? 'Professional pathway') . '</p><h2>' . study_interest_h($pathway['label']) . '</h2><p>' . study_interest_h($snapshot['result_text']['professional_pathway_body'] ?? '') . '</p></div>';
-    $clarity = (string)($snapshot['profile_clarity']['code'] ?? 'OPEN');
-    $clarityText = match ($clarity) {
-        'PRACTICALLY_EQUAL', 'MULTIDISCIPLINARY' => (string)($snapshot['result_text']['multidisciplinary'] ?? 'Several fields are worth exploring.'),
-        'VERY_CLEAR' => 'Your leading interest direction is relatively clear.',
-        'FAIRLY_CLEAR', 'SINGLE_DOMINANT' => 'You have a useful starting direction for further exploration.',
-        default => 'Your interest profile remains open to several directions.',
-    };
-    $dominantLabels = array_map(static fn(array $dimension): string => (string)$dimension['label'], array_slice($snapshot['dimensions'] ?? [], 0, 3));
-    $interpretations = '';
-    foreach ($snapshot['interpretations'] ?? [] as $interpretation) $interpretations .= '<p>' . study_interest_h($interpretation) . '</p>';
-    if ($interpretations !== '') $interpretations = '<div class="sie-card"><h2>What the close results mean</h2>' . $interpretations . '</div>';
-    $content_html = '<main class="sie-shell sie-results"><p class="sie-eyebrow">YOUR STUDY INTEREST PROFILE</p><h1>' . study_interest_h(implode(' · ', $dominantLabels)) . '</h1><p class="sie-lead">' . study_interest_h($clarityText) . '</p>'
-        . '<section class="sie-results-grid">' . $recommendations . '</section><section class="sie-card"><h2>Your interest dimensions</h2>' . $bars . '</section>'
-        . $interpretations . $pathways . '<div class="sie-card"><h2>Use this as a conversation starter</h2><p>Explore the recommended fields further and discuss the result with a parent, teacher, mentor, or education counsellor.</p></div>'
-        . '<div class="sie-disclaimer">' . study_interest_h($snapshot['result_text']['disclaimer'] ?? '') . '</div></main>';
 } elseif ($session !== null) {
+    $page_class .= ' sie-assessment-page';
     $questions = study_interest_public_questions($pdo, (int)$session['version_id']);
     $answers = study_interest_answer_map($pdo, (int)$session['id']);
     $clientQuestions = [];
@@ -66,22 +143,72 @@ if ($publicId !== '' && $session === null) {
         $selectedCode = $answers[$question['code']] ?? null;
         foreach ($question['options'] as $option) if ($option['code'] === $selectedCode) $clientAnswers[(string)$question['id']] = $option['id'];
     }
-    $content_html = '<main class="sie-assessment"><header><a href="/study-interest/" class="sie-brand">Study Interest Explorer</a><div><span id="sie-progress-label"></span><progress id="sie-progress" max="' . count($clientQuestions) . '" value="1"></progress></div></header>'
-        . '<section id="sie-question" class="sie-question" aria-live="polite"></section><footer><button id="sie-back" class="sie-button secondary" type="button">Back</button><span id="sie-save-state" role="status">Saved</span><button id="sie-next" class="sie-button" type="button">Next</button></footer></main>';
+    ob_start();
+    ?>
+    <main class="sie-assessment">
+        <header class="sie-assessment-header">
+            <span class="sie-logo"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></span>
+            <div class="sie-progress-wrap">
+                <div><span>Progres eksplorasi</span><strong id="sie-progress-label">Pertanyaan 1 dari <?= count($clientQuestions) ?></strong></div>
+                <progress id="sie-progress" aria-labelledby="sie-progress-label" max="<?= count($clientQuestions) ?>" value="1"></progress>
+            </div>
+        </header>
+        <section id="sie-question" class="sie-question"></section>
+        <footer class="sie-assessment-footer">
+            <button id="sie-back" class="sie-button sie-button-quiet" type="button"><span aria-hidden="true">&larr;</span> Kembali</button>
+            <span id="sie-save-state" class="sie-save-state" role="status" aria-live="polite" data-state="idle"><i aria-hidden="true"></i> Siap</span>
+            <button id="sie-next" class="sie-button" type="button">Lanjut <span aria-hidden="true">&rarr;</span></button>
+        </footer>
+    </main>
+    <?php
+    $content_html = (string)ob_get_clean();
     $page_data = ['mode' => 'assessment', 'csrf' => $csrf, 'session' => $publicId, 'questions' => $clientQuestions, 'answers' => $clientAnswers,
         'answerUrl' => '/study-interest/api/answer', 'completeUrl' => '/study-interest/api/complete'];
 } else {
-    $content_html = '<main class="sie-shell"><p class="sie-eyebrow">EXPLORATION TOOL</p><h1>Find the fields that feel like you.</h1>'
-        . '<p class="sie-lead">Explore your study interests and get a thoughtful starting point for discussion. There are no right or wrong answers, no timer, and no proctoring.</p>'
-        . '<div class="sie-card"><h2>Before you begin</h2><p>Set aside around 10 to 15 minutes. Your answers are saved automatically in this browser.</p>'
-        . '<div class="sie-fields"><label>Full name<input id="sie-name" type="text" minlength="2" maxlength="120" autocomplete="name" required></label>'
-        . '<label>School or organization<input id="sie-school" type="text" minlength="2" maxlength="191" autocomplete="organization" required></label>'
-        . '<label>Class or current level<input id="sie-class" type="text" maxlength="40" placeholder="Example: Grade 12" required></label>'
-        . '<label>Email (optional)<input id="sie-email" type="email" maxlength="191" autocomplete="email"></label>'
-        . '<label>Phone or WhatsApp (optional)<input id="sie-phone" type="tel" maxlength="40" autocomplete="tel"></label></div>'
-        . '<label class="sie-consent"><input id="sie-consent" type="checkbox"> I understand that this is an exploration tool, not a diagnosis, aptitude test, or assessment of academic ability.</label>'
-        . '<label class="sie-consent"><input id="sie-contact-consent" type="checkbox"> I agree that the optional contact details above may be used to follow up about this result.</label>'
-        . '<button id="sie-start" class="sie-button" type="button" disabled>Start exploration</button><p id="sie-message" role="status"></p></div></main>';
+    $page_class .= ' sie-landing-page';
+    ob_start();
+    ?>
+    <main class="sie-landing">
+        <header class="sie-site-header">
+            <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></a>
+            <span class="sie-time-badge">45 pertanyaan <i></i> 10-15 menit</span>
+        </header>
+        <div class="sie-landing-grid">
+            <section class="sie-hero" aria-labelledby="sie-landing-title">
+                <p class="sie-kicker">EKSPLORASI, BUKAN UJIAN</p>
+                <h1 id="sie-landing-title">Temukan pola minatmu.</h1>
+                <p class="sie-hero-lead">Bukan label dan bukan penentu masa depan. Ini adalah titik awal untuk melihat bidang, aktivitas, dan cara belajar yang terasa paling dekat denganmu.</p>
+                <div class="sie-hero-graphic" aria-hidden="true">
+                    <span class="sie-orbit sie-orbit-one"></span><span class="sie-orbit sie-orbit-two"></span><span class="sie-orbit sie-orbit-three"></span>
+                    <strong>45</strong><small>pilihan untuk<br>membaca pola</small>
+                </div>
+                <ul class="sie-feature-list"><li><b>Tanpa timer</b><span>Jawab dengan ritmemu sendiri.</span></li><li><b>Tersimpan otomatis</b><span>Lanjutkan di browser yang sama.</span></li><li><b>Tidak ada jawaban benar</b><span>Pilih yang paling menggambarkan dirimu.</span></li></ul>
+            </section>
+
+            <form id="sie-start-form" class="sie-start-panel" novalidate>
+                <div class="sie-panel-heading"><span>01</span><div><p class="sie-kicker">SEBELUM MULAI</p><h2>Kenalkan dirimu</h2><p>Informasi ini membantu pengelola mengenali hasil eksplorasimu.</p></div></div>
+                <div class="sie-fields">
+                    <label class="sie-field sie-field-wide"><span>Nama lengkap <b>*</b></span><input id="sie-name" type="text" minlength="2" maxlength="120" autocomplete="name" placeholder="Nama yang biasa kamu gunakan" required></label>
+                    <label class="sie-field"><span>Sekolah atau institusi <b>*</b></span><input id="sie-school" type="text" minlength="2" maxlength="191" autocomplete="organization" placeholder="Nama institusi" required></label>
+                    <label class="sie-field"><span>Kelas atau tahap saat ini <b>*</b></span><input id="sie-class" type="text" maxlength="40" placeholder="Contoh: Kelas 12" required></label>
+                </div>
+                <div class="sie-contact-block">
+                    <div class="sie-contact-heading"><div><span>Kontak tindak lanjut</span><small>Opsional</small></div><p>Isi hanya jika kamu bersedia dihubungi terkait hasil ini.</p></div>
+                    <div class="sie-fields sie-contact-fields">
+                        <label class="sie-field"><span>Email</span><input id="sie-email" type="email" maxlength="191" autocomplete="email" placeholder="nama@contoh.com"></label>
+                        <label class="sie-field"><span>Nomor telepon</span><input id="sie-phone" type="tel" maxlength="40" autocomplete="tel" placeholder="Nomor yang dapat dihubungi"></label>
+                    </div>
+                    <label class="sie-check sie-contact-check"><input id="sie-contact-consent" type="checkbox"><span><b>Saya setuju untuk dihubungi.</b> Kontak opsional di atas boleh digunakan untuk menindaklanjuti hasil ini.</span></label>
+                </div>
+                <label class="sie-check sie-main-consent"><input id="sie-consent" type="checkbox" required><span><b>Saya memahami tujuan eksplorasi ini.</b> Hasilnya bukan diagnosis, tes bakat, atau penilaian kemampuan akademik.</span></label>
+                <div class="sie-start-actions"><button id="sie-start" class="sie-button" type="submit" disabled>Mulai eksplorasi <span aria-hidden="true">&rarr;</span></button><p id="sie-message" role="status" aria-live="polite"></p></div>
+                <noscript><p class="sie-form-error">JavaScript diperlukan untuk memulai dan menyimpan jawaban eksplorasi ini.</p></noscript>
+            </form>
+        </div>
+    </main>
+    <?php
+    $content_html = (string)ob_get_clean();
     $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start'];
 }
+
 require __DIR__ . '/layout.php';

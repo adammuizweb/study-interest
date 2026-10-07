@@ -13,7 +13,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.2.2', 'plugin version is 0.2.2');
+$check(($manifest['version'] ?? null) === '0.3.0', 'plugin version is 0.3.0');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins']['quiz'] ?? null) === '>=1.4.13', 'Quiz extension API dependency is explicit and versioned');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
