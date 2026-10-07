@@ -1,15 +1,19 @@
 {
   "name": "study-interest",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "title": "Study Interest Explorer",
   "icon": "assets/icon-sidebar.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
   "author_uri": "https://adammuiz.com",
-  "plugin_uri": "https://github.com/adammuizweb/study-interest",
+  "plugin_uri": "https://jyavani.com/plugin/study-interest/",
   "homepage": "https://github.com/adammuizweb/study-interest",
   "github_url": "https://github.com/adammuizweb/study-interest",
   "license": "MIT",
+  "store": {
+    "url": "https://jyavani.com/plugin-store",
+    "slug": "study-interest"
+  },
   "requires": {
     "jyavani": ">=2.3.174",
     "php": ">=8.3",

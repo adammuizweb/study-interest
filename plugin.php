@@ -42,8 +42,8 @@ function study_interest_is_admin_request(): bool
 function study_interest_admin_assets(): void
 {
     if (!study_interest_is_admin_request()) return;
-    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.9.0">' . PHP_EOL;
-    echo '<script src="/static/plugins/study-interest/admin.js?v=0.9.0" defer></script>' . PHP_EOL;
+    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.9.1">' . PHP_EOL;
+    echo '<script src="/static/plugins/study-interest/admin.js?v=0.9.1" defer></script>' . PHP_EOL;
 }
 
 if (function_exists('register_frontend_route')) {
