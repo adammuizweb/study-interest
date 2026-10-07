@@ -27,4 +27,19 @@
       form.requestSubmit(submitter || undefined);
     });
   });
+
+  root.querySelectorAll('[data-sie-delete-question]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const accepted = window.NewNotifConfirm
+        ? await window.NewNotifConfirm.danger({
+            title: 'Delete this draft question?',
+            message: 'The question and its hidden scoring will be removed from this draft. Published versions are not affected.',
+            confirmText: 'Delete question',
+            focus: 'cancel'
+          })
+        : window.confirm('Delete this question from the draft?');
+      if (accepted && button.form && button.form.reportValidity()) button.form.requestSubmit(button);
+    });
+  });
 }());

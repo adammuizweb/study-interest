@@ -21,6 +21,114 @@ function study_interest_now_utc(): string
         : (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
 }
 
+function study_interest_result_presentation_setting_key(): string
+{
+    return 'study_interest_result_presentation';
+}
+
+function study_interest_result_presentation_defaults(): array
+{
+    return [
+        'schema' => 1,
+        'mode' => 'full',
+        'sections' => [
+            'hero' => 'show',
+            'directions' => 'show',
+            'dimensions' => 'show',
+            'interpretation' => 'show',
+            'pathways' => 'show',
+            'next_steps' => 'show',
+            'disclaimer' => 'show',
+        ],
+        'masked_title' => 'Hasilmu sedang ditinjau',
+        'masked_message' => 'Ringkasan hasil belum dibuka untuk peserta. Silakan hubungi pengelola atau konselor untuk informasi lebih lanjut.',
+        'hidden_title' => 'Hasil belum dapat ditampilkan',
+        'hidden_message' => 'Pengelola belum membuka halaman hasil untuk peserta.',
+        'section_mask_message' => 'Bagian ini hanya tersedia melalui pendampingan pengelola atau konselor.',
+    ];
+}
+
+function study_interest_result_presentation_text(mixed $value, string $fallback, int $maximum): string
+{
+    $text = trim((string)$value);
+    if ($text === '' || preg_match('//u', $text) !== 1 || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $text) === 1) return $fallback;
+    return mb_substr($text, 0, $maximum);
+}
+
+function study_interest_result_presentation_normalize(mixed $value): array
+{
+    $defaults = study_interest_result_presentation_defaults();
+    if (!is_array($value)) return $defaults;
+    $mode = (string)($value['mode'] ?? '');
+    if (!in_array($mode, ['full', 'masked', 'hidden'], true)) $mode = $defaults['mode'];
+    $sections = [];
+    $postedSections = is_array($value['sections'] ?? null) ? $value['sections'] : [];
+    foreach ($defaults['sections'] as $key => $default) {
+        $state = (string)($postedSections[$key] ?? '');
+        $sections[$key] = in_array($state, ['show', 'mask', 'hide'], true) ? $state : $default;
+    }
+    return [
+        'schema' => 1,
+        'mode' => $mode,
+        'sections' => $sections,
+        'masked_title' => study_interest_result_presentation_text($value['masked_title'] ?? '', $defaults['masked_title'], 120),
+        'masked_message' => study_interest_result_presentation_text($value['masked_message'] ?? '', $defaults['masked_message'], 500),
+        'hidden_title' => study_interest_result_presentation_text($value['hidden_title'] ?? '', $defaults['hidden_title'], 120),
+        'hidden_message' => study_interest_result_presentation_text($value['hidden_message'] ?? '', $defaults['hidden_message'], 500),
+        'section_mask_message' => study_interest_result_presentation_text($value['section_mask_message'] ?? '', $defaults['section_mask_message'], 500),
+    ];
+}
+
+function study_interest_result_presentation_fail_closed(): array
+{
+    $policy = study_interest_result_presentation_defaults();
+    $policy['mode'] = 'hidden';
+    $policy['hidden_title'] = 'Hasil sementara tidak tersedia';
+    $policy['hidden_message'] = 'Pengaturan akses hasil tidak dapat diverifikasi. Silakan hubungi pengelola layanan.';
+    return $policy;
+}
+
+function study_interest_result_presentation_is_valid(mixed $value): bool
+{
+    if (!is_array($value) || (int)($value['schema'] ?? 0) !== 1 || !in_array((string)($value['mode'] ?? ''), ['full', 'masked', 'hidden'], true)) return false;
+    if (!is_array($value['sections'] ?? null)) return false;
+    foreach (study_interest_result_presentation_defaults()['sections'] as $key => $_default) {
+        if (!in_array((string)($value['sections'][$key] ?? ''), ['show', 'mask', 'hide'], true)) return false;
+    }
+    foreach (['masked_title' => 120, 'masked_message' => 500, 'hidden_title' => 120, 'hidden_message' => 500, 'section_mask_message' => 500] as $key => $maximum) {
+        $text = $value[$key] ?? null;
+        if (!is_string($text) || trim($text) === '' || mb_strlen($text) > $maximum || preg_match('//u', $text) !== 1 || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $text) === 1) return false;
+    }
+    return true;
+}
+
+function study_interest_result_presentation(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->prepare('SELECT value FROM settings WHERE `key`=? LIMIT 1');
+        $statement->execute([study_interest_result_presentation_setting_key()]);
+        $raw = $statement->fetchColumn();
+        if ($raw === false) return study_interest_result_presentation_fail_closed();
+        if (!is_string($raw) || $raw === '') return study_interest_result_presentation_fail_closed();
+        $decoded = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
+        if (!study_interest_result_presentation_is_valid($decoded)) return study_interest_result_presentation_fail_closed();
+        return study_interest_result_presentation_normalize($decoded);
+    } catch (Throwable $error) {
+        error_log('[study-interest] result presentation policy unavailable: ' . $error->getMessage());
+        return study_interest_result_presentation_fail_closed();
+    }
+}
+
+function study_interest_result_presentation_hash(array $policy): string
+{
+    return hash('sha256', json_encode(study_interest_result_presentation_normalize($policy), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function study_interest_participant_snapshot_hash(?string $contactJson, ?string $contactConsentAtUtc): string
+{
+    return hash('sha256', (string)$contactJson . "\n" . (string)$contactConsentAtUtc);
+}
+
 function study_interest_audit(PDO $pdo, int $actorId, string $action, string $entityType, ?string $entityId, ?array $before, ?array $after): void
 {
     $statement = $pdo->prepare('INSERT INTO study_interest_audit_log (actor_id,action,entity_type,entity_id,before_json,after_json,request_id,created_at_utc) VALUES (?,?,?,?,?,?,?,?)');

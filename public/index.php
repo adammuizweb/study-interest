@@ -32,8 +32,18 @@ if ($publicId !== '' && $session === null) {
         $page_class .= ' sie-state-page';
         $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">HASIL TIDAK TERSEDIA</p><h1>Hasil belum dapat ditampilkan.</h1><p>Data hasil sesi ini tidak dapat dibaca. Silakan hubungi pengelola layanan.</p></main>';
     } else {
+        $presentation = study_interest_result_presentation($pdo);
+        if ((string)$presentation['mode'] === 'hidden') {
+            $page_class .= ' sie-state-page';
+            $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">AKSES HASIL</p><h1>' . study_interest_h((string)$presentation['hidden_title']) . '</h1><p>' . study_interest_h((string)$presentation['hidden_message']) . '</p><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a></main>';
+            require __DIR__ . '/layout.php';
+            return;
+        }
         $page_class .= ' sie-result-page';
-        $recommendations = is_array($snapshot['recommendations'] ?? null) ? $snapshot['recommendations'] : [];
+        $configuration = study_interest_configuration_from_session($session);
+        $programs = is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [];
+        $directionLimit = max(1, min(8, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
+        $recommendations = study_interest_leading_directions($programs, $directionLimit);
         $dimensions = is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [];
         $pathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
         $interpretationItems = is_array($snapshot['interpretations'] ?? null) ? $snapshot['interpretations'] : [];
@@ -47,6 +57,10 @@ if ($publicId !== '' && $session === null) {
             default => 'Profil minatmu masih terbuka ke beberapa arah.',
         };
         $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Indeks kecocokan minat');
+        $sectionState = static fn(string $key): string => (string)($presentation['sections'][$key] ?? 'show');
+        $renderMask = static function (string $label) use ($presentation): void {
+            ?><section class="sie-result-mask" aria-label="<?= study_interest_h($label) ?>"><span aria-hidden="true"></span><div><p class="sie-kicker">AKSES TERBATAS</p><h2><?= study_interest_h($label) ?></h2><p><?= study_interest_h((string)$presentation['section_mask_message']) ?></p></div></section><?php
+        };
         ob_start();
         ?>
         <main class="sie-results">
@@ -54,7 +68,10 @@ if ($publicId !== '' && $session === null) {
                 <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></a>
                 <span class="sie-private-badge"><span aria-hidden="true"></span> Hasil privat</span>
             </header>
-            <section class="sie-result-hero" aria-labelledby="sie-result-title">
+            <?php if ((string)$presentation['mode'] === 'masked'): ?>
+                <section class="sie-result-access-notice"><span class="sie-result-access-mark" aria-hidden="true"></span><p class="sie-kicker">AKSES TERBATAS</p><h1><?= study_interest_h((string)$presentation['masked_title']) ?></h1><p><?= study_interest_h((string)$presentation['masked_message']) ?></p><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a></section>
+            <?php else: ?>
+            <?php if ($sectionState('hero') === 'show'): ?><section class="sie-result-hero" aria-labelledby="sie-result-title">
                 <div>
                     <p class="sie-kicker">HASIL EKSPLORASIMU</p>
                     <h1 id="sie-result-title">Kenali pola minat yang paling menonjol.</h1>
@@ -65,9 +82,9 @@ if ($publicId !== '' && $session === null) {
                         <div class="sie-signal sie-signal-<?= $position + 1 ?>"><span>0<?= $position + 1 ?></span><strong><?= study_interest_h($label) ?></strong></div>
                     <?php endforeach; ?>
                 </div>
-            </section>
+            </section><?php elseif ($sectionState('hero') === 'mask'): ?><?php $renderMask('Ringkasan profil minat'); ?><?php endif; ?>
 
-            <section class="sie-result-section" aria-labelledby="sie-directions-title">
+            <?php if ($sectionState('directions') === 'show'): ?><section class="sie-result-section" aria-labelledby="sie-directions-title">
                 <div class="sie-section-heading">
                     <div><p class="sie-kicker">ARAH BERIKUTNYA</p><h2 id="sie-directions-title">Bidang untuk dieksplorasi</h2></div>
                     <p>Gunakan rekomendasi ini untuk mencari tahu isi studi, aktivitas, dan jalur lanjutannya.</p>
@@ -79,9 +96,9 @@ if ($publicId !== '' && $session === null) {
                             <div><p class="sie-kicker">MASIH TERBUKA</p><h3><?= study_interest_h($snapshot['result_text']['no_dominant_title'] ?? 'Profil Minat Masih Terbuka') ?></h3><p><?= study_interest_h($snapshot['result_text']['no_dominant_body'] ?? '') ?></p></div>
                         </article>
                     <?php else: ?>
-                        <?php foreach ($recommendations as $program): ?>
+                        <?php foreach ($recommendations as $programIndex => $program): ?>
                             <article class="sie-result-card">
-                                <span class="sie-rank">0<?= (int)($program['rank'] ?? 0) ?></span>
+                                <span class="sie-rank">0<?= (int)($program['rank'] ?? ($programIndex ?? 0) + 1) ?></span>
                                 <h3><?= study_interest_h($program['label'] ?? '') ?></h3>
                                 <div class="sie-result-score"><strong><?= number_format((float)($program['score'] ?? 0), 1) ?></strong><span>/100</span></div>
                                 <p><?= study_interest_h($program['classification'] ?? '') ?></p>
@@ -90,9 +107,9 @@ if ($publicId !== '' && $session === null) {
                     <?php endif; ?>
                 </div>
                 <p class="sie-score-note"><?= study_interest_h($scoreName) ?> menggambarkan kedekatan pola jawabanmu dengan tiap bidang, bukan peluang diterima atau ukuran kemampuan akademik.</p>
-            </section>
+            </section><?php elseif ($sectionState('directions') === 'mask'): ?><?php $renderMask('Arah studi terdekat'); ?><?php endif; ?>
 
-            <section class="sie-dimensions" aria-labelledby="sie-dimensions-title">
+            <?php if ($sectionState('dimensions') === 'show'): ?><section class="sie-dimensions" aria-labelledby="sie-dimensions-title">
                 <div class="sie-section-heading sie-section-heading-light">
                     <div><p class="sie-kicker">PETA LENGKAP</p><h2 id="sie-dimensions-title">Delapan dimensi minat</h2></div>
                     <p>Semakin panjang garisnya, semakin konsisten dimensi itu muncul dalam pilihanmu.</p>
@@ -106,22 +123,25 @@ if ($publicId !== '' && $session === null) {
                         </div>
                     <?php endforeach; ?>
                 </div>
-            </section>
+            </section><?php elseif ($sectionState('dimensions') === 'mask'): ?><?php $renderMask('Peta dimensi minat'); ?><?php endif; ?>
 
-            <?php if ($interpretationItems !== []): ?>
+            <?php if ($sectionState('interpretation') === 'show' && $interpretationItems !== []): ?>
                 <section class="sie-insight" aria-labelledby="sie-insight-title"><p class="sie-kicker">BACA POLANYA</p><h2 id="sie-insight-title">Ketika beberapa hasil berdekatan</h2><?php foreach ($interpretationItems as $interpretation): ?><p><?= study_interest_h($interpretation) ?></p><?php endforeach; ?></section>
+            <?php elseif ($sectionState('interpretation') === 'mask'): ?>
+                <?php $renderMask('Interpretasi pola hasil'); ?>
             <?php endif; ?>
 
-            <?php foreach ($pathways as $pathwayIndex => $pathway): ?>
+            <?php if ($sectionState('pathways') === 'show' && $pathways !== []): ?><?php foreach ($pathways as $pathwayIndex => $pathway): ?>
                 <section class="sie-pathway" aria-labelledby="sie-pathway-title-<?= (int)$pathwayIndex ?>"><div class="sie-pathway-marker" aria-hidden="true">P</div><div><p class="sie-kicker"><?= study_interest_h($snapshot['result_text']['professional_pathway'] ?? 'JALUR PROFESI') ?></p><h2 id="sie-pathway-title-<?= (int)$pathwayIndex ?>"><?= study_interest_h($pathway['label'] ?? '') ?></h2><p><?= study_interest_h($snapshot['result_text']['professional_pathway_body'] ?? '') ?></p></div></section>
-            <?php endforeach; ?>
+            <?php endforeach; ?><?php elseif ($sectionState('pathways') === 'mask'): ?><?php $renderMask('Jalur profesi'); ?><?php endif; ?>
 
-            <section class="sie-next-steps" aria-labelledby="sie-next-steps-title">
+            <?php if ($sectionState('next_steps') === 'show'): ?><section class="sie-next-steps" aria-labelledby="sie-next-steps-title">
                 <div><p class="sie-kicker">JANGAN BERHENTI DI SKOR</p><h2 id="sie-next-steps-title">Ubah hasil ini menjadi percakapan.</h2></div>
                 <p>Cari tahu mata kuliah, jenis aktivitas, dan pengalaman nyata dari bidang yang menarik perhatianmu. Diskusikan hasil ini dengan orang yang memahami perjalanan belajarmu.</p>
                 <a class="sie-button sie-button-light" href="/study-interest/">Mulai eksplorasi baru <span aria-hidden="true">&rarr;</span></a>
-            </section>
-            <p class="sie-disclaimer"><?= study_interest_h($snapshot['result_text']['disclaimer'] ?? '') ?></p>
+            </section><?php elseif ($sectionState('next_steps') === 'mask'): ?><?php $renderMask('Langkah berikutnya'); ?><?php endif; ?>
+            <?php if ($sectionState('disclaimer') === 'show'): ?><p class="sie-disclaimer"><?= study_interest_h($snapshot['result_text']['disclaimer'] ?? '') ?></p><?php elseif ($sectionState('disclaimer') === 'mask'): ?><?php $renderMask('Catatan hasil'); ?><?php endif; ?>
+            <?php endif; ?>
         </main>
         <?php
         $content_html = (string)ob_get_clean();

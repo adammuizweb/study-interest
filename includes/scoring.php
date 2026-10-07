@@ -10,7 +10,16 @@ function study_interest_classification(float $score, array $configuration): stri
     return 'Unclassified';
 }
 
-function study_interest_score(array $configuration, array $answers, int $durationSeconds): array
+function study_interest_leading_directions(array $programs, int $limit = 3): array
+{
+    $direct = array_values(array_filter($programs, static fn(mixed $program): bool => is_array($program)
+        && (string)($program['recommendation_type'] ?? '') === 'DIRECT_ENTRY'));
+    usort($direct, static fn(array $left, array $right): int => (float)($right['score'] ?? 0) <=> (float)($left['score'] ?? 0)
+        ?: strcmp((string)($left['code'] ?? ''), (string)($right['code'] ?? '')));
+    return array_slice($direct, 0, max(1, $limit));
+}
+
+function study_interest_score_baseline_1_0(array $configuration, array $answers, int $durationSeconds): array
 {
     $errors = study_interest_configuration_errors($configuration);
     if ($errors !== []) throw new DomainException(implode(' ', $errors));
@@ -125,4 +134,18 @@ function study_interest_score(array $configuration, array $answers, int $duratio
         'profile_clarity' => ['code' => $clarity, 'top_gap' => $gap !== null ? round($gap, 3) : null],
         'flags' => $flags, 'duration_seconds' => max(0, $durationSeconds),
     ];
+}
+
+function study_interest_score_versioned(string $algorithmVersion, array $configuration, array $answers, int $durationSeconds): array
+{
+    if (!in_array($algorithmVersion, study_interest_supported_algorithm_versions(), true)) throw new DomainException('The frozen scoring algorithm is unavailable.');
+    return match ($algorithmVersion) {
+        'baseline-1.0' => study_interest_score_baseline_1_0($configuration, $answers, $durationSeconds),
+        default => throw new DomainException('The frozen scoring algorithm is unavailable.'),
+    };
+}
+
+function study_interest_score(array $configuration, array $answers, int $durationSeconds): array
+{
+    return study_interest_score_versioned((string)($configuration['algorithm_version'] ?? ''), $configuration, $answers, $durationSeconds);
 }

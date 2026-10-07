@@ -36,6 +36,7 @@ $publishedCompletionRate = $publishedVersion !== null && (int)$publishedVersion[
 $programCount = count($packagedConfiguration['programs'] ?? []);
 ?>
 <div class="sie-admin">
+  <?php study_interest_admin_nav('overview'); ?>
   <header class="sie-admin-head">
     <div>
       <span class="sie-admin-eyebrow"><?= study_interest_h(__('Study Interest')) ?> &middot; v<?= study_interest_h($pluginVersion) ?></span>
@@ -43,7 +44,7 @@ $programCount = count($packagedConfiguration['programs'] ?? []);
       <p><?= study_interest_h(__('Manage immutable assessment versions, monitor participation, and review result quality from one place.')) ?></p>
     </div>
     <div class="sie-admin-actions">
-      <?php if ($canViewResults): ?><a class="adam-button secondary" href="<?= study_interest_h($studyInterestBase . '/results') ?>"><?= study_interest_h(__('View analytics')) ?></a><?php endif; ?>
+      <?php if (study_interest_admin_can('plugin.study-interest.sessions.view')): ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('sessions')) ?>"><?= study_interest_h(__('Manage sessions')) ?></a><?php endif; ?>
       <a class="adam-button" href="/study-interest/" target="_blank" rel="noopener"><?= study_interest_h(__('Open public assessment')) ?> <span aria-hidden="true">&nearr;</span></a>
     </div>
   </header>
@@ -84,6 +85,16 @@ $programCount = count($packagedConfiguration['programs'] ?? []);
     <div><span><?= study_interest_h(__('Sessions')) ?></span><strong><?= $totalSessions ?></strong><small><?= study_interest_h(__('all versions')) ?></small></div>
     <div><span><?= study_interest_h(__('Completed')) ?></span><strong><?= $totalCompleted ?></strong><small><?= study_interest_h(__('result snapshots')) ?></small></div>
     <div><span><?= study_interest_h(__('Completion rate')) ?></span><strong><?= number_format($completionRate, 0) ?>%</strong><small><?= study_interest_h(__('started sessions')) ?></small></div>
+  </section>
+
+  <section class="sie-module-grid" aria-label="<?= study_interest_h(__('Workspace modules')) ?>">
+    <?php if (study_interest_admin_can('plugin.study-interest.config.view')): ?><a href="<?= study_interest_h(study_interest_admin_url('assessments')) ?>"><span>01</span><div><h2><?= study_interest_h(__('Assessments')) ?></h2><p><?= study_interest_h(__('Versions, sections, dimensions, programs, and publication readiness.')) ?></p></div><b aria-hidden="true">&rarr;</b></a>
+    <a href="<?= study_interest_h(study_interest_admin_url('questions')) ?>"><span>02</span><div><h2><?= study_interest_h(__('Question bank')) ?></h2><p><?= study_interest_h(__('Prompts, options, reverse items, and hidden scoring rules.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
+    <?php if (study_interest_admin_can('plugin.study-interest.contacts.view')): ?><a href="<?= study_interest_h(study_interest_admin_url('participants')) ?>"><span>03</span><div><h2><?= study_interest_h(__('Participants')) ?></h2><p><?= study_interest_h(__('Identity snapshots, contact consent, and session history.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
+    <?php if (study_interest_admin_can('plugin.study-interest.sessions.view')): ?><a href="<?= study_interest_h(study_interest_admin_url('sessions')) ?>"><span>04</span><div><h2><?= study_interest_h(__('Sessions')) ?></h2><p><?= study_interest_h(__('Progress, answers, results, flags, and controlled corrections.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
+    <?php if (study_interest_admin_can('plugin.study-interest.presentation.view')): ?><a href="<?= study_interest_h(study_interest_admin_url('result-page')) ?>"><span>05</span><div><h2><?= study_interest_h(__('Result page')) ?></h2><p><?= study_interest_h(__('Control participant access and show, mask, or hide individual result sections.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
+    <?php if ($canViewResults): ?><a href="<?= study_interest_h(study_interest_admin_url('results')) ?>"><span>06</span><div><h2><?= study_interest_h(__('Analytics')) ?></h2><p><?= study_interest_h(__('Participation, recommendation patterns, and quality signals.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
+    <?php if (study_interest_admin_can('plugin.study-interest.audit.view')): ?><a href="<?= study_interest_h(study_interest_admin_url('audit')) ?>"><span>07</span><div><h2><?= study_interest_h(__('Activity log')) ?></h2><p><?= study_interest_h(__('Trace publications, exports, participant changes, deletions, and result revisions.')) ?></p></div><b aria-hidden="true">&rarr;</b></a><?php endif; ?>
   </section>
 
   <section class="sie-admin-section">

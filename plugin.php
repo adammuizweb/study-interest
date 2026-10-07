@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/configuration.php';
 require_once __DIR__ . '/includes/scoring.php';
 require_once __DIR__ . '/includes/assessment.php';
+require_once __DIR__ . '/includes/export.php';
 
 function study_interest_quiz_dependency_ready(): bool
 {
@@ -52,8 +53,8 @@ function study_interest_is_admin_request(): bool
 function study_interest_admin_assets(): void
 {
     if (!study_interest_is_admin_request()) return;
-    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.4.0">' . PHP_EOL;
-    echo '<script src="/static/plugins/study-interest/admin.js?v=0.4.0" defer></script>' . PHP_EOL;
+    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.7.0">' . PHP_EOL;
+    echo '<script src="/static/plugins/study-interest/admin.js?v=0.7.0" defer></script>' . PHP_EOL;
 }
 
 if (function_exists('register_frontend_route')) {
@@ -77,7 +78,7 @@ if (function_exists('add_action')) {
         $pdo = $GLOBALS['pdo'] ?? null;
         if (!($pdo instanceof PDO)) return;
         foreach ([
-            'study_interest_audit_log', 'study_interest_rate_limits', 'study_interest_result_flags',
+            'study_interest_audit_log', 'study_interest_rate_limits', 'study_interest_result_revisions', 'study_interest_result_flags',
             'study_interest_program_results', 'study_interest_dimension_results', 'study_interest_answers', 'study_interest_sessions',
             'study_interest_program_weights', 'study_interest_programs', 'study_interest_option_scores',
             'study_interest_options', 'study_interest_questions', 'study_interest_sections',

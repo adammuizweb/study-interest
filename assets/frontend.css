@@ -192,6 +192,15 @@ a { color: inherit; }
 .sie-next-steps > p { margin: 0; }
 .sie-button-light { justify-self: start; background: #fff; color: var(--navy); }
 .sie-disclaimer { margin-top: 26px; color: var(--muted); font-size: .76rem; text-align: center; }
+.sie-result-access-notice { width: min(980px, calc(100% - 64px)); min-height: 520px; display: grid; align-content: center; justify-items: start; margin: 20px auto 0; padding: clamp(42px, 8vw, 92px); overflow: hidden; border-radius: 34px; background: var(--navy); color: #fff; box-shadow: var(--shadow); }
+.sie-result-access-mark { width: 72px; height: 72px; display: block; margin-bottom: 56px; border: 18px solid var(--lime); border-radius: 50%; box-shadow: 28px 18px 0 -10px var(--coral); }
+.sie-result-access-notice .sie-kicker { color: var(--lime); }
+.sie-result-access-notice h1 { max-width: 760px; margin: 0; color: #fff; font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: .94; letter-spacing: -.065em; }
+.sie-result-access-notice > p:not(.sie-kicker) { max-width: 700px; margin: 24px 0 34px; color: #cbd1e6; font-size: 1.05rem; line-height: 1.65; }
+.sie-result-mask { width: min(1100px, calc(100% - 64px)); min-height: 230px; display: grid; grid-template-columns: 92px 1fr; gap: 30px; align-items: center; margin: 34px auto; padding: clamp(30px, 5vw, 54px); border: 2px dashed #9da5c4; border-radius: 26px; background: color-mix(in srgb, var(--paper) 88%, #dfe3f2); }
+.sie-result-mask > span { width: 80px; height: 80px; display: block; border: 16px solid #c8cde0; border-right-color: var(--violet); border-radius: 50%; transform: rotate(-25deg); }
+.sie-result-mask h2 { margin: 0; color: var(--navy); font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.045em; }
+.sie-result-mask div > p:last-child { max-width: 720px; margin: 12px 0 0; color: var(--muted); }
 
 /* Error state */
 .sie-state-page { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 28px; background: var(--navy); }
@@ -268,6 +277,10 @@ a { color: inherit; }
   .sie-signal-3 { width: 120px; height: 120px; }
   .sie-signal strong { font-size: .84rem; }
   .sie-result-section, .sie-dimensions, .sie-insight, .sie-pathway, .sie-next-steps, .sie-disclaimer { width: calc(100% - 36px); }
+  .sie-result-access-notice, .sie-result-mask { width: calc(100% - 36px); }
+  .sie-result-access-notice { min-height: 440px; padding: 40px 28px; border-radius: 26px; }
+  .sie-result-mask { min-height: 0; grid-template-columns: 1fr; gap: 22px; padding: 30px 24px; }
+  .sie-result-mask > span { width: 64px; height: 64px; border-width: 13px; }
   .sie-result-section { padding: 68px 0 58px; }
   .sie-result-card { min-height: 270px; }
   .sie-empty-result { grid-template-columns: 1fr; }

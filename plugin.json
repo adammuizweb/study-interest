@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.4.0",
+  "version": "0.7.0",
   "title": "Study Interest Explorer",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
@@ -12,7 +12,7 @@
   "requires": {
     "jyavani": ">=2.3.174",
     "php": ">=8.3",
-    "extensions": ["pdo", "pdo_mysql", "json", "mbstring"],
+    "extensions": ["pdo", "pdo_mysql", "json", "mbstring", "zip"],
     "plugins": {
       "quiz": ">=1.4.13"
     }
@@ -33,6 +33,13 @@
       "delegable": false
     },
     {
+      "key": "plugin.study-interest.config.view",
+      "label": "View Study Interest Configuration and Scoring",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
       "key": "plugin.study-interest.config.publish",
       "label": "Publish Study Interest Configuration",
       "supports_scope": false,
@@ -47,6 +54,20 @@
       "delegable": true
     },
     {
+      "key": "plugin.study-interest.presentation.view",
+      "label": "View Study Interest Result Page Policy",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
+      "key": "plugin.study-interest.presentation.manage",
+      "label": "Manage Study Interest Result Page Policy",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
       "key": "plugin.study-interest.contacts.view",
       "label": "View Study Interest Contact Data",
       "supports_scope": false,
@@ -54,8 +75,57 @@
       "delegable": false
     },
     {
+      "key": "plugin.study-interest.contacts.manage",
+      "label": "Edit Study Interest Participant Data",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
       "key": "plugin.study-interest.results.export",
       "label": "Export Study Interest Results",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.sessions.view",
+      "label": "View Study Interest Sessions",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
+      "key": "plugin.study-interest.responses.view",
+      "label": "View Study Interest Responses",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
+      "key": "plugin.study-interest.results.correct",
+      "label": "Correct Study Interest Results",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.sessions.delete",
+      "label": "Permanently Delete Study Interest Sessions",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.workspace.export",
+      "label": "Export Study Interest Operational Data",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.audit.view",
+      "label": "View Study Interest Audit Trail",
       "supports_scope": false,
       "default_roles": ["admin"],
       "delegable": false
@@ -69,6 +139,166 @@
         "title": "Study Interest",
         "roles": ["admin", "editor"],
         "permission": "plugin.study-interest.dashboard.access"
+      },
+      {
+        "route": "admin/tools/study-interest/assessments",
+        "file": "admin/assessments.php",
+        "title": "Study Interest Assessments",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.config.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/assessments/edit",
+        "file": "admin/assessments/edit.php",
+        "title": "Edit Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/assessments/save",
+        "file": "admin/assessments/save.php",
+        "title": "Save Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/questions",
+        "file": "admin/questions/index.php",
+        "title": "Study Interest Questions",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.config.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/questions/edit",
+        "file": "admin/questions/edit.php",
+        "title": "Edit Study Interest Question",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.config.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/questions/save",
+        "file": "admin/questions/save.php",
+        "title": "Save Study Interest Question",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/questions/delete",
+        "file": "admin/questions/delete.php",
+        "title": "Delete Study Interest Question",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/clone-version",
+        "file": "admin/clone-version.php",
+        "title": "Create Study Interest Draft",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/participants",
+        "file": "admin/participants.php",
+        "title": "Study Interest Participants",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.contacts.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/participants/edit",
+        "file": "admin/participants/edit.php",
+        "title": "Edit Study Interest Participant",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.contacts.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/participants/save",
+        "file": "admin/participants/save.php",
+        "title": "Save Study Interest Participant",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.contacts.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions",
+        "file": "admin/sessions/index.php",
+        "title": "Study Interest Sessions",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.sessions.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/view",
+        "file": "admin/sessions/view.php",
+        "title": "Study Interest Session Detail",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.sessions.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/correct",
+        "file": "admin/sessions/correct.php",
+        "title": "Correct Study Interest Result",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.results.correct",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/save-correction",
+        "file": "admin/sessions/save-correction.php",
+        "title": "Save Study Interest Result Correction",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.results.correct",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/delete",
+        "file": "admin/sessions/delete.php",
+        "title": "Delete Study Interest Session",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.sessions.delete",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/audit",
+        "file": "admin/audit.php",
+        "title": "Study Interest Activity Log",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.audit.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/result-page",
+        "file": "admin/result-page.php",
+        "title": "Study Interest Result Page",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.presentation.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/result-page/save",
+        "file": "admin/result-page/save.php",
+        "title": "Save Study Interest Result Page",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.presentation.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/workspace-export",
+        "file": "admin/workspace-export.php",
+        "title": "Export Study Interest Workspace",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.workspace.export",
+        "hidden": true
       },
       {
         "route": "admin/tools/study-interest/import-baseline",
