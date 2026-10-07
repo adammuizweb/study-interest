@@ -13,7 +13,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.3.0', 'plugin version is 0.3.0');
+$check(($manifest['version'] ?? null) === '0.4.0', 'plugin version is 0.4.0');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins']['quiz'] ?? null) === '>=1.4.13', 'Quiz extension API dependency is explicit and versioned');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -53,6 +53,8 @@ foreach ($manifest['static']['copy'] ?? [] as $asset) {
 $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'public route is separate from Quiz');
 $check(str_contains($pluginSource, 'quiz_extension_api_version'), 'dependency uses the public Quiz extension API');
+$check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.4.0'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -64,6 +66,11 @@ $check(str_contains($publishSource, "csrf_check") && str_contains($publishSource
 $exportSource = (string)file_get_contents($root . '/admin/export.php');
 $check(str_contains($exportSource, 'csrf_check') && str_contains($exportSource, 'authorization_lock_actor_permissions')
     && str_contains($exportSource, 'results.exported') && !str_contains($exportSource, 'contact_json'), 'anonymized export is authorized, audited, and excludes contact data');
+$dashboardSource = (string)file_get_contents($root . '/admin/index.php');
+$resultsSource = (string)file_get_contents($root . '/admin/results.php');
+$check(str_contains($dashboardSource, '/import-baseline.php') && str_contains($dashboardSource, '/publish.php')
+    && str_contains($resultsSource, '/export.php'), 'dashboard mutations use pre-layout direct action routes');
+$check(!str_contains($dashboardSource, 'widefat') && !str_contains($resultsSource, 'widefat'), 'dashboard uses native scoped presentation instead of WordPress table classes');
 $publicQuestionSource = (string)file_get_contents($root . '/includes/helpers.php');
 $check(!str_contains($publicQuestionSource, 'option_scores s ON'), 'public question loader does not expose hidden scores');
 $frontendSource = (string)file_get_contents($root . '/assets/frontend.js');

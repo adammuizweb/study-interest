@@ -43,6 +43,19 @@ function study_interest_is_public_request(): bool
     return $path === '/study-interest' || str_starts_with($path, '/study-interest/');
 }
 
+function study_interest_is_admin_request(): bool
+{
+    $page = trim((string)($_GET['page'] ?? ''), '/');
+    return $page === 'admin/tools/study-interest' || str_starts_with($page, 'admin/tools/study-interest/');
+}
+
+function study_interest_admin_assets(): void
+{
+    if (!study_interest_is_admin_request()) return;
+    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.4.0">' . PHP_EOL;
+    echo '<script src="/static/plugins/study-interest/admin.js?v=0.4.0" defer></script>' . PHP_EOL;
+}
+
 if (function_exists('register_frontend_route')) {
     register_frontend_route('study-interest', function (PDO $pdo): void {
         $path = rawurldecode((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/'));
@@ -58,6 +71,7 @@ if (function_exists('register_frontend_route')) {
 }
 
 if (function_exists('add_action')) {
+    add_action('admin_head', 'study_interest_admin_assets');
     add_action('plugin_uninstall', function (string $name): void {
         if ($name !== 'study-interest') return;
         $pdo = $GLOBALS['pdo'] ?? null;

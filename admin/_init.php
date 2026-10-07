@@ -11,12 +11,29 @@ if ($studyInterestUserId < 1) {
     http_response_code(403);
     exit;
 }
-$studyInterestBase = ADMIN_BASE_PATH . '/?page=admin/tools/study-interest';
 
-function study_interest_admin_redirect(string $notice): never
+if (!function_exists('adiwira_redirect_with_flash') && defined('DASH_PATH')) {
+    require_once rtrim((string)DASH_PATH, DIRECTORY_SEPARATOR) . '/admin/_notify.php';
+}
+
+$studyInterestBase = rtrim((string)ADMIN_BASE_PATH, '/') . '/?page=admin/tools/study-interest';
+$studyInterestActionBase = rtrim((string)ADMIN_BASE_PATH, '/') . '/admin/tools/study-interest';
+
+function study_interest_admin_redirect(string $type, string $message, ?string $location = null): never
 {
-    $allowed = ['imported', 'published', 'invalid', 'failed'];
-    if (!in_array($notice, $allowed, true)) $notice = 'failed';
-    header('Location: ' . ADMIN_BASE_PATH . '/?page=admin/tools/study-interest&notice=' . rawurlencode($notice), true, 303);
+    global $studyInterestBase;
+    $target = $location ?? $studyInterestBase;
+    if (function_exists('adiwira_redirect_with_flash')) adiwira_redirect_with_flash($target, $type, $message, 303);
+    header('Location: ' . $target, true, 303);
     exit;
+}
+
+function study_interest_admin_datetime(?string $utc): string
+{
+    if ($utc === null || trim($utc) === '') return __('Not yet');
+    if (function_exists('app_utc_mysql_to_site') && function_exists('app_display_datetime')) {
+        $date = app_utc_mysql_to_site($utc);
+        if ($date instanceof DateTimeInterface) return app_display_datetime($date);
+    }
+    return $utc;
 }

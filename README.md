@@ -9,7 +9,7 @@ contract and does not reuse Quiz attempt tables or internal request handlers.
 
 ## Current status
 
-Version `0.3.0` provides append-only migrations, a packaged 45-question draft,
+Version `0.4.0` provides append-only migrations, a packaged 45-question draft,
 publication validation, immutable configuration snapshots, consent, private
 browser sessions, autosave/resume, server-side scoring, recommendations,
 response-quality flags, normalized result storage, and participant results.

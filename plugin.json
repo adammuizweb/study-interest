@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "title": "Study Interest Explorer",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
@@ -116,7 +116,9 @@
   "static": {
     "copy": [
       {"from": "assets/frontend.css", "to": "static/plugins/study-interest/frontend.css"},
-      {"from": "assets/frontend.js", "to": "static/plugins/study-interest/frontend.js"}
+      {"from": "assets/frontend.js", "to": "static/plugins/study-interest/frontend.js"},
+      {"from": "assets/admin.css", "to": "static/plugins/study-interest/admin.css"},
+      {"from": "assets/admin.js", "to": "static/plugins/study-interest/admin.js"}
     ]
   },
   "assets": {"css": [], "js": []}
