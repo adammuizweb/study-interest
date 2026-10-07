@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Study Interest Explorer",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
@@ -10,11 +10,11 @@
   "github_url": "https://github.com/adammuizweb/study-interest",
   "license": "MIT",
   "requires": {
-    "jyavani": ">=2.3.74",
+    "jyavani": ">=2.3.174",
     "php": ">=8.3",
-    "extensions": ["pdo", "json", "mbstring"],
+    "extensions": ["pdo", "pdo_mysql", "json", "mbstring"],
     "plugins": {
-      "quiz": ">=1.4.12"
+      "quiz": ">=1.4.13"
     }
   },
   "permissions": [
@@ -31,6 +31,34 @@
       "supports_scope": false,
       "default_roles": ["admin"],
       "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.config.publish",
+      "label": "Publish Study Interest Configuration",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.results.view",
+      "label": "View Study Interest Results",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
+      "key": "plugin.study-interest.contacts.view",
+      "label": "View Study Interest Contact Data",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    },
+    {
+      "key": "plugin.study-interest.results.export",
+      "label": "Export Study Interest Results",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
     }
   ],
   "admin": {
@@ -41,6 +69,38 @@
         "title": "Study Interest",
         "roles": ["admin", "editor"],
         "permission": "plugin.study-interest.dashboard.access"
+      },
+      {
+        "route": "admin/tools/study-interest/import-baseline",
+        "file": "admin/import-baseline.php",
+        "title": "Import Study Interest Baseline",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/publish",
+        "file": "admin/publish.php",
+        "title": "Publish Study Interest Version",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.publish",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/results",
+        "file": "admin/results.php",
+        "title": "Study Interest Results",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.results.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/export",
+        "file": "admin/export.php",
+        "title": "Export Study Interest Results",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.results.export",
+        "hidden": true
       }
     ],
     "nav": [
@@ -48,9 +108,16 @@
         "label": "Study Interest",
         "icon": "compass",
         "page": "admin/tools/study-interest",
-        "parent": "pages",
+        "parent": "tools",
         "roles": ["admin", "editor"]
       }
     ]
-  }
+  },
+  "static": {
+    "copy": [
+      {"from": "assets/frontend.css", "to": "static/plugins/study-interest/frontend.css"},
+      {"from": "assets/frontend.js", "to": "static/plugins/study-interest/frontend.js"}
+    ]
+  },
+  "assets": {"css": [], "js": []}
 }

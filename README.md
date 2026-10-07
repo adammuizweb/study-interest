@@ -9,10 +9,24 @@ contract and does not reuse Quiz attempt tables or internal request handlers.
 
 ## Current status
 
-The `0.1.0` foundation provides the plugin contract, isolated schema, consent
-entry point, and session creation endpoint. Questionnaire authoring, publishing,
-scoring, result interpretation, and analytics are not enabled until a reviewed
-assessment configuration exists.
+Version `0.2.0` provides append-only migrations, a packaged 45-question draft,
+publication validation, immutable configuration snapshots, consent, private
+browser sessions, autosave/resume, server-side scoring, recommendations,
+response-quality flags, normalized result storage, and participant results.
+The dashboard includes aggregate result analytics and an authorized, audited
+CSV export that excludes contact data.
+
+The packaged baseline is never published automatically. An authorized reviewer
+must import it as a draft and explicitly publish it after reviewing the
+questionnaire and compatibility weights.
+
+## Routes
+
+- Public assessment: `/study-interest/`
+- Dashboard: `admin/tools/study-interest`
+
+Published scoring data is never sent to the browser. Public URLs use UUIDs and
+also require the matching HTTP-only session token.
 
 ## Development notes
 
