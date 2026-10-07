@@ -39,6 +39,8 @@
       if (!form.reportValidity()) return;
       const payload = {
         consent: true,
+        version_id: data.versionId,
+        configuration_hash: data.configurationHash,
         name: name.value.trim(),
         school: school.value.trim(),
         class_level: classLevel.value.trim(),

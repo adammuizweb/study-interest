@@ -8,6 +8,12 @@ $versions = $pdo->query("SELECT v.*,t.code AS test_code,t.title AS test_title,t.
     (SELECT COUNT(*) FROM study_interest_sessions s WHERE s.version_id=v.id) AS session_count
     FROM study_interest_test_versions v JOIN study_interest_tests t ON t.id=v.test_id
     ORDER BY (v.status='published') DESC,v.id DESC")->fetchAll(PDO::FETCH_ASSOC);
+foreach ($versions as &$version) {
+    $versionConfiguration = json_decode((string)$version['configuration_json'], true);
+    $version['configuration_title'] = is_array($versionConfiguration) && trim((string)($versionConfiguration['title'] ?? '')) !== ''
+        ? trim((string)$versionConfiguration['title']) : (string)$version['test_title'];
+}
+unset($version);
 $requested = filter_var($_GET['version_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 $selected = null;
 foreach ($versions as $version) if ($requested && (int)$version['id'] === (int)$requested) { $selected = $version; break; }
@@ -26,16 +32,16 @@ $canManage = study_interest_admin_can('plugin.study-interest.config.manage');
   <?php study_interest_admin_nav('assessments'); ?>
   <header class="sie-admin-head">
     <div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Configuration')) ?></span><h1 class="page-heading"><?= study_interest_h(__('Assessments')) ?></h1><p><?= study_interest_h(__('Inspect immutable releases, create a working draft, and review the complete scoring model before publication.')) ?></p></div>
-    <?php if ($selected !== null): ?><div class="sie-admin-actions"><?php if ($canManage && (string)$selected['status'] === 'draft'): ?><a class="adam-button" href="<?= study_interest_h(study_interest_admin_url('assessments/edit', ['version_id' => (int)$selected['id']])) ?>"><?= study_interest_h(__('Edit assessment')) ?></a><?php endif; ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('questions', ['version_id' => (int)$selected['id']])) ?>"><?= study_interest_h(__('Open question bank')) ?></a></div><?php endif; ?>
+    <div class="sie-admin-actions"><?php if ($canManage): ?><a class="adam-button" href="<?= study_interest_h(study_interest_admin_url('assessments/create')) ?>"><?= study_interest_h(__('New assessment')) ?></a><?php endif; ?><?php if ($selected !== null && $canManage && (string)$selected['status'] === 'draft'): ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('assessments/edit', ['version_id' => (int)$selected['id']])) ?>"><?= study_interest_h(__('Edit assessment')) ?></a><?php endif; ?><?php if ($selected !== null): ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('questions', ['version_id' => (int)$selected['id']])) ?>"><?= study_interest_h(__('Open question bank')) ?></a><?php endif; ?></div>
   </header>
 
   <section class="sie-filter-bar">
     <div><span><?= study_interest_h(__('Configuration library')) ?></span><strong><?= count($versions) ?> <?= study_interest_h(__('version(s)')) ?></strong></div>
-    <form method="get" action="<?= study_interest_h(rtrim((string)ADMIN_BASE_PATH, '/') . '/') ?>"><input type="hidden" name="page" value="admin/tools/study-interest/assessments"><label><span><?= study_interest_h(__('Assessment version')) ?></span><select class="adam-input" name="version_id" data-sie-autosubmit><?php foreach ($versions as $version): ?><option value="<?= (int)$version['id'] ?>" <?= $selected !== null && (int)$version['id'] === (int)$selected['id'] ? 'selected' : '' ?>><?= study_interest_h((string)$version['version_code']) ?> &middot; <?= study_interest_h(ucfirst((string)$version['status'])) ?></option><?php endforeach; ?></select></label></form>
+    <form method="get" action="<?= study_interest_h(rtrim((string)ADMIN_BASE_PATH, '/') . '/') ?>"><input type="hidden" name="page" value="admin/tools/study-interest/assessments"><label><span><?= study_interest_h(__('Assessment version')) ?></span><select class="adam-input" name="version_id" data-sie-autosubmit><?php foreach ($versions as $version): ?><option value="<?= (int)$version['id'] ?>" <?= $selected !== null && (int)$version['id'] === (int)$selected['id'] ? 'selected' : '' ?>><?= study_interest_h((string)$version['configuration_title'] . ' · ' . (string)$version['version_code']) ?> &middot; <?= study_interest_h(ucfirst((string)$version['status'])) ?></option><?php endforeach; ?></select></label></form>
   </section>
 
   <?php if ($selected === null): ?>
-    <div class="sie-analytics-empty"><h2><?= study_interest_h(__('No assessment configuration yet')) ?></h2><p><?= study_interest_h(__('Import the packaged baseline from Overview to create the first draft.')) ?></p></div>
+    <div class="sie-analytics-empty"><h2><?= study_interest_h(__('No assessment configuration yet')) ?></h2><p><?= study_interest_h(__('Create an assessment from the packaged model, then customize it entirely from this dashboard.')) ?></p><?php if ($canManage): ?><a class="adam-button" href="<?= study_interest_h(study_interest_admin_url('assessments/create')) ?>"><?= study_interest_h(__('Create assessment')) ?></a><?php endif; ?></div>
   <?php else: ?>
     <section class="sie-version-hero">
       <div><span class="sie-status is-<?= study_interest_h((string)$selected['status']) ?>"><i></i><?= study_interest_h(ucfirst((string)$selected['status'])) ?></span><h2><?= study_interest_h((string)($configuration['title'] ?? $selected['test_title'])) ?></h2><p><?= study_interest_h((string)($configuration['description'] ?? $selected['test_description'] ?? '')) ?></p></div>

@@ -42,4 +42,40 @@
       if (accepted && button.form && button.form.reportValidity()) button.form.requestSubmit(button);
     });
   });
+
+  const optionEditor = root.querySelector('[data-sie-option-editor]');
+  const optionTemplate = root.querySelector('[data-sie-option-template]');
+  const optionCount = root.querySelector('[data-sie-option-count]');
+  const updateOptionRows = () => {
+    if (!optionEditor) return;
+    const rows = optionEditor.querySelectorAll('[data-sie-option-row]');
+    rows.forEach((row, index) => {
+      const title = row.querySelector('.sie-option-row-title strong');
+      if (title) title.textContent = `Answer ${index + 1}`;
+    });
+    if (optionCount) optionCount.textContent = String(rows.length);
+  };
+  root.querySelector('[data-sie-add-option]')?.addEventListener('click', () => {
+    if (!optionEditor || !optionTemplate) return;
+    const index = Number(optionEditor.dataset.nextIndex || '0');
+    const fragment = optionTemplate.content.cloneNode(true);
+    fragment.querySelectorAll('[name]').forEach((field) => {
+      field.name = field.name.replace('__INDEX__', String(index));
+    });
+    optionEditor.append(fragment);
+    optionEditor.dataset.nextIndex = String(index + 1);
+    updateOptionRows();
+    optionEditor.lastElementChild?.querySelector('input')?.focus();
+  });
+  optionEditor?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-sie-remove-option]');
+    if (!button) return;
+    const rows = optionEditor.querySelectorAll('[data-sie-option-row]');
+    if (rows.length <= 2) {
+      window.alert('At least two answer options are required.');
+      return;
+    }
+    button.closest('[data-sie-option-row]')?.remove();
+    updateOptionRows();
+  });
 }());

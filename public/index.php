@@ -41,6 +41,8 @@ if ($publicId !== '' && $session === null) {
         }
         $page_class .= ' sie-result-page';
         $configuration = study_interest_configuration_from_session($session);
+        $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Peta Minat Studi')) ?: 'Peta Minat Studi';
+        $page_title = $assessmentTitle;
         $programs = is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [];
         $directionLimit = max(1, min(8, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
         $recommendations = study_interest_leading_directions($programs, $directionLimit);
@@ -58,18 +60,26 @@ if ($publicId !== '' && $session === null) {
         };
         $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Indeks kecocokan minat');
         $sectionState = static fn(string $key): string => (string)($presentation['sections'][$key] ?? 'show');
-        $renderMask = static function (string $label) use ($presentation): void {
-            ?><section class="sie-result-mask" aria-label="<?= study_interest_h($label) ?>"><span aria-hidden="true"></span><div><p class="sie-kicker">AKSES TERBATAS</p><h2><?= study_interest_h($label) ?></h2><p><?= study_interest_h((string)$presentation['section_mask_message']) ?></p></div></section><?php
+        $renderMask = static function (string $label, ?string $message = null, bool $page = false) use ($presentation): void {
+            $message ??= (string)$presentation['section_mask_message'];
+            ?><section class="sie-result-mask<?= $page ? ' sie-result-mask-page' : '' ?>" aria-label="<?= study_interest_h($label) ?>">
+                <div class="sie-result-mask-preview" aria-hidden="true">
+                    <div class="sie-mask-preview-heading"><i></i><i></i></div>
+                    <div class="sie-mask-preview-cards"><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span></div>
+                    <div class="sie-mask-preview-bars"><span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span></div>
+                </div>
+                <div class="sie-result-mask-copy"><p class="sie-kicker">HASIL DISAMARKAN</p><?php if ($page): ?><h1><?= study_interest_h($label) ?></h1><?php else: ?><h2><?= study_interest_h($label) ?></h2><?php endif; ?><p><?= study_interest_h($message) ?></p><?php if ($page): ?><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a><?php endif; ?></div>
+            </section><?php
         };
         ob_start();
         ?>
         <main class="sie-results">
             <header class="sie-site-header sie-results-header">
-                <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></a>
+                <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></a>
                 <span class="sie-private-badge"><span aria-hidden="true"></span> Hasil privat</span>
             </header>
             <?php if ((string)$presentation['mode'] === 'masked'): ?>
-                <section class="sie-result-access-notice"><span class="sie-result-access-mark" aria-hidden="true"></span><p class="sie-kicker">AKSES TERBATAS</p><h1><?= study_interest_h((string)$presentation['masked_title']) ?></h1><p><?= study_interest_h((string)$presentation['masked_message']) ?></p><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a></section>
+                <?php $renderMask((string)$presentation['masked_title'], (string)$presentation['masked_message'], true); ?>
             <?php else: ?>
             <?php if ($sectionState('hero') === 'show'): ?><section class="sie-result-hero" aria-labelledby="sie-result-title">
                 <div>
@@ -148,6 +158,9 @@ if ($publicId !== '' && $session === null) {
     }
 } elseif ($session !== null) {
     $page_class .= ' sie-assessment-page';
+    $configuration = study_interest_configuration_from_session($session);
+    $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Peta Minat Studi')) ?: 'Peta Minat Studi';
+    $page_title = $assessmentTitle;
     $questions = study_interest_public_questions($pdo, (int)$session['version_id']);
     $answers = study_interest_answer_map($pdo, (int)$session['id']);
     $clientQuestions = [];
@@ -167,7 +180,7 @@ if ($publicId !== '' && $session === null) {
     ?>
     <main class="sie-assessment">
         <header class="sie-assessment-header">
-            <span class="sie-logo"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></span>
+            <span class="sie-logo"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></span>
             <div class="sie-progress-wrap">
                 <div><span>Progres eksplorasi</span><strong id="sie-progress-label">Pertanyaan 1 dari <?= count($clientQuestions) ?></strong></div>
                 <progress id="sie-progress" aria-labelledby="sie-progress-label" max="<?= count($clientQuestions) ?>" value="1"></progress>
@@ -186,21 +199,30 @@ if ($publicId !== '' && $session === null) {
         'answerUrl' => '/study-interest/api/answer', 'completeUrl' => '/study-interest/api/complete'];
 } else {
     $page_class .= ' sie-landing-page';
+    $publishedVersion = study_interest_published_version($pdo);
+    $publishedConfiguration = is_array($publishedVersion) ? json_decode((string)$publishedVersion['configuration_json'], true) : null;
+    $assessmentTitle = is_array($publishedConfiguration) ? trim((string)($publishedConfiguration['title'] ?? '')) : '';
+    $assessmentDescription = is_array($publishedConfiguration) ? trim((string)($publishedConfiguration['description'] ?? '')) : '';
+    $assessmentTitle = $assessmentTitle !== '' ? $assessmentTitle : 'Peta Minat Studi';
+    $assessmentDescription = $assessmentDescription !== '' ? $assessmentDescription : 'Temukan pola minat, aktivitas, dan cara belajar yang terasa paling dekat denganmu.';
+    $questionCount = is_array($publishedVersion) ? max(0, (int)$publishedVersion['expected_question_count']) : 0;
+    $estimatedMinutes = max(3, (int)ceil($questionCount / 4));
+    $page_title = $assessmentTitle;
     ob_start();
     ?>
     <main class="sie-landing">
         <header class="sie-site-header">
-            <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span>Peta Minat Studi</span></a>
-            <span class="sie-time-badge">45 pertanyaan <i></i> 10-15 menit</span>
+            <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></a>
+            <span class="sie-time-badge"><?= $questionCount ?> pertanyaan <i></i> sekitar <?= $estimatedMinutes ?> menit</span>
         </header>
         <div class="sie-landing-grid">
             <section class="sie-hero" aria-labelledby="sie-landing-title">
                 <p class="sie-kicker">EKSPLORASI, BUKAN UJIAN</p>
-                <h1 id="sie-landing-title">Temukan pola minatmu.</h1>
-                <p class="sie-hero-lead">Bukan label dan bukan penentu masa depan. Ini adalah titik awal untuk melihat bidang, aktivitas, dan cara belajar yang terasa paling dekat denganmu.</p>
+                <h1 id="sie-landing-title"><?= study_interest_h($assessmentTitle) ?></h1>
+                <p class="sie-hero-lead"><?= study_interest_h($assessmentDescription) ?></p>
                 <div class="sie-hero-graphic" aria-hidden="true">
                     <span class="sie-orbit sie-orbit-one"></span><span class="sie-orbit sie-orbit-two"></span><span class="sie-orbit sie-orbit-three"></span>
-                    <strong>45</strong><small>pilihan untuk<br>membaca pola</small>
+                    <strong><?= $questionCount ?></strong><small>pilihan untuk<br>membaca pola</small>
                 </div>
                 <ul class="sie-feature-list"><li><b>Tanpa timer</b><span>Jawab dengan ritmemu sendiri.</span></li><li><b>Tersimpan otomatis</b><span>Lanjutkan di browser yang sama.</span></li><li><b>Tidak ada jawaban benar</b><span>Pilih yang paling menggambarkan dirimu.</span></li></ul>
             </section>
@@ -228,7 +250,9 @@ if ($publicId !== '' && $session === null) {
     </main>
     <?php
     $content_html = (string)ob_get_clean();
-    $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start'];
+    $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start',
+        'versionId' => is_array($publishedVersion) ? (int)$publishedVersion['id'] : 0,
+        'configurationHash' => is_array($publishedVersion) ? (string)$publishedVersion['configuration_hash'] : ''];
 }
 
 require __DIR__ . '/layout.php';

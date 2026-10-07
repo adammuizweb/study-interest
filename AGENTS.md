@@ -17,10 +17,10 @@ permissions, and workflows.
 
 - This plugin owns assessment configuration, immutable versions, public
   sessions, autosaved answers, scoring, result snapshots, flags, and analytics.
-- Quiz is a required platform dependency only through its documented extension
-  API. Never load Quiz files by path or read/write Quiz tables.
+- Study Interest is standalone within Jyavani. Never depend on Quiz functions,
+  files, permissions, routes, assets, or tables.
 - Strict exams, OTP, proctoring, device locks, and test-number workflows remain
-  owned by Quiz and must not be added here by default.
+  outside this plugin and must not be added here by default.
 - Core owns routing, authorization, migrations, CSRF primitives, and plugin
   lifecycle. Do not patch Core when a published contract already exists.
 

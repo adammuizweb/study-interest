@@ -19,6 +19,12 @@ if ($phone !== '' && preg_match('/\A[0-9+().\- ]{6,40}\z/', $phone) !== 1) study
 if (($email !== '' || $phone !== '') && !$contactConsent) study_interest_json(['ok' => false, 'error' => 'Contact consent is required when contact details are provided'], 422);
 $version = study_interest_published_version($pdo);
 if ($version === null) study_interest_json(['ok' => false, 'error' => 'No published assessment is available yet'], 503);
+$requestedVersionId = filter_var($input['version_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$requestedHash = is_string($input['configuration_hash'] ?? null) ? trim($input['configuration_hash']) : '';
+if ($requestedVersionId === false || $requestedVersionId === null || preg_match('/\A[a-f0-9]{64}\z/', $requestedHash) !== 1
+    || (int)$version['id'] !== (int)$requestedVersionId || !hash_equals((string)$version['configuration_hash'], $requestedHash)) {
+    study_interest_json(['ok' => false, 'error' => 'The assessment changed. Reload this page before starting.'], 409);
+}
 $publicId = study_interest_uuid();
 $token = bin2hex(random_bytes(32));
 $now = study_interest_now_utc();

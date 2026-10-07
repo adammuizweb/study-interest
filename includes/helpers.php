@@ -41,10 +41,10 @@ function study_interest_result_presentation_defaults(): array
             'disclaimer' => 'show',
         ],
         'masked_title' => 'Hasilmu sedang ditinjau',
-        'masked_message' => 'Ringkasan hasil belum dibuka untuk peserta. Silakan hubungi pengelola atau konselor untuk informasi lebih lanjut.',
+        'masked_message' => 'Admin akan menghubungimu dan memberitahu hasil test kamu.',
         'hidden_title' => 'Hasil belum dapat ditampilkan',
         'hidden_message' => 'Pengelola belum membuka halaman hasil untuk peserta.',
-        'section_mask_message' => 'Bagian ini hanya tersedia melalui pendampingan pengelola atau konselor.',
+        'section_mask_message' => 'Admin akan menghubungimu dan memberitahu hasil test kamu.',
     ];
 }
 
@@ -162,9 +162,20 @@ function study_interest_published_version(PDO $pdo): ?array
     $stmt = $pdo->query("SELECT v.*, t.code AS test_code, t.title AS test_title
         FROM study_interest_test_versions v
         JOIN study_interest_tests t ON t.id = v.test_id
-        WHERE v.status = 'published' ORDER BY v.published_at_utc DESC, v.id DESC LIMIT 1");
+        WHERE v.public_slot = 1 AND v.status = 'published' LIMIT 1");
     $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-    return is_array($row) ? $row : null;
+    if (!is_array($row)) return null;
+    try {
+        $configuration = json_decode((string)$row['configuration_json'], true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($configuration) || !hash_equals((string)$row['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) {
+            error_log('[study-interest] published assessment configuration integrity check failed.');
+            return null;
+        }
+    } catch (Throwable $error) {
+        error_log('[study-interest] published assessment configuration is unavailable: ' . $error->getMessage());
+        return null;
+    }
+    return $row;
 }
 
 function study_interest_session_cookie_name(string $publicId): string

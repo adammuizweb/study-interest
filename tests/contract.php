@@ -14,9 +14,9 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.7.0', 'plugin version is 0.7.0');
+$check(($manifest['version'] ?? null) === '0.8.0', 'plugin version is 0.8.0');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
-$check(($manifest['requires']['plugins']['quiz'] ?? null) === '>=1.4.13', 'Quiz extension API dependency is explicit and versioned');
+$check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
 $check(in_array('pdo_mysql', $manifest['requires']['extensions'] ?? [], true), 'MySQL PDO requirement is explicit');
 $check(in_array('zip', $manifest['requires']['extensions'] ?? [], true), 'ZIP requirement supports native Excel exports');
@@ -28,7 +28,9 @@ $check(is_file($migration) && is_file($root . '/migrations/0002-upgrade-foundati
     && is_file($root . '/migrations/0004-operational-workspace.php')
     && is_file($root . '/migrations/0005-verify-operational-workspace.php')
     && is_file($root . '/migrations/0006-seed-result-presentation.php')
-    && is_file($root . '/migrations/0007-verify-result-presentation.php'), 'append-only foundation, workspace, and result-presentation migrations exist');
+    && is_file($root . '/migrations/0007-verify-result-presentation.php')
+    && is_file($root . '/migrations/0008-refine-result-masking.php')
+    && is_file($root . '/migrations/0009-enforce-single-live-assessment.php'), 'append-only foundation, workspace, and result-presentation migrations exist');
 $check(!is_file($root . '/schema.sql'), 'request-time schema file was removed');
 $check(str_contains($schema, 'study_interest_test_versions') && str_contains($schema, 'configuration_hash'), 'version table freezes configuration identity');
 $check(str_contains($schema, 'result_snapshot_json'), 'result snapshot field exists');
@@ -40,6 +42,10 @@ $check(str_contains($operationalMigration, 'study_interest_result_revisions') &&
 $check(str_contains($operationalMigration, 'information_schema.COLUMNS') && str_contains($operationalMigration, 'CREATE TABLE IF NOT EXISTS'), 'operational migration is retry-safe after partial DDL');
 $presentationMigration = (string)file_get_contents($root . '/migrations/0006-seed-result-presentation.php');
 $check(str_contains($presentationMigration, 'study_interest_result_presentation') && str_contains($presentationMigration, "'mode' => 'full'"), 'migration explicitly seeds the backward-compatible result-page policy');
+$singleLiveMigration = (string)file_get_contents($root . '/migrations/0009-enforce-single-live-assessment.php');
+$check(str_contains($singleLiveMigration, 'GENERATED ALWAYS AS')
+    && str_contains($singleLiveMigration, 'uq_study_interest_public_slot')
+    && str_contains($singleLiveMigration, 'study_interest_publication_lock'), 'database enforces one globally published assessment and serializes publication');
 $check(!str_contains($schema, 'quiz_attempts'), 'schema does not reuse Quiz attempt tables');
 $check(!preg_match('/`(?:created|updated|started|completed|consent|published|retired|answered)_at`/', $schema), 'new instant columns use explicit UTC names');
 
@@ -73,17 +79,21 @@ $check(($routes['admin/tools/study-interest/result-page']['permission'] ?? null)
     && ($routes['admin/tools/study-interest/result-page/save']['permission'] ?? null) === 'plugin.study-interest.presentation.manage', 'result-page policy separates viewing and management permissions');
 $check(($routes['admin/tools/study-interest/assessments']['permission'] ?? null) === 'plugin.study-interest.config.view'
     && ($routes['admin/tools/study-interest/questions']['permission'] ?? null) === 'plugin.study-interest.config.view', 'hidden scoring routes use configuration-view permission');
+$check(($routes['admin/tools/study-interest/assessments/create']['permission'] ?? null) === 'plugin.study-interest.config.manage'
+    && ($routes['admin/tools/study-interest/assessments/create-save']['permission'] ?? null) === 'plugin.study-interest.config.manage'
+    && ($routes['admin/tools/study-interest/assessments/delete']['permission'] ?? null) === 'plugin.study-interest.config.manage', 'assessment create and delete routes use configuration-management permission');
 $check(($manifest['admin']['nav'][0]['parent'] ?? null) === 'tools', 'manifest navigation uses the tools group');
+$check(($manifest['admin']['nav'][0]['icon_asset'] ?? null) === 'static/plugins/study-interest/icon-sidebar.svg', 'dashboard aside uses the published Study Interest icon');
 foreach ($manifest['static']['copy'] ?? [] as $asset) {
     $check(is_file($root . '/' . (string)$asset['from']), 'static source exists: ' . (string)$asset['from']);
     $check(str_starts_with((string)$asset['to'], 'static/plugins/study-interest/'), 'static asset stays in plugin namespace');
 }
 
 $pluginSource = (string)file_get_contents($root . '/plugin.php');
-$check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'public route is separate from Quiz');
-$check(str_contains($pluginSource, 'quiz_extension_api_version'), 'dependency uses the public Quiz extension API');
+$check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
+$check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.7.0'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.8.0'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -106,20 +116,37 @@ $check(str_contains($dashboardSource, '/import-baseline.php') && str_contains($d
     && str_contains($resultsSource, '/export.php'), 'dashboard mutations use pre-layout direct action routes');
 $check(!str_contains($dashboardSource, 'widefat') && !str_contains($resultsSource, 'widefat'), 'dashboard uses native scoped presentation instead of WordPress table classes');
 $questionSaveSource = (string)file_get_contents($root . '/admin/questions/save.php');
+$questionEditSource = (string)file_get_contents($root . '/admin/questions/edit.php');
+$assessmentCreateSource = (string)file_get_contents($root . '/admin/assessments/create-save.php');
+$assessmentDeleteSource = (string)file_get_contents($root . '/admin/assessments/delete.php');
+$assessmentSaveSource = (string)file_get_contents($root . '/admin/assessments/save.php');
 $correctionSource = (string)file_get_contents($root . '/admin/sessions/save-correction.php');
+$sessionListSource = (string)file_get_contents($root . '/admin/sessions/index.php');
 $sessionViewSource = (string)file_get_contents($root . '/admin/sessions/view.php');
 $check(str_contains($questionSaveSource, 'study_interest_replace_draft_configuration')
     && str_contains($questionSaveSource, 'authorization_lock_actor_permissions')
     && str_contains($questionSaveSource, "'draft'"), 'question authoring is transactional and draft-only');
+$check(str_contains($questionEditSource, 'data-sie-add-option')
+    && str_contains($questionEditSource, 'data-sie-remove-option')
+    && str_contains($questionEditSource, "questions/delete"), 'question editor exposes create, update, and delete controls for questions and answers');
+$check(str_contains($assessmentCreateSource, 'study_interest_import_configuration')
+    && str_contains($assessmentCreateSource, 'test.created')
+    && str_contains($assessmentDeleteSource, "status'] !== 'draft'")
+    && str_contains($assessmentDeleteSource, 'configuration.deleted'), 'assessment CRUD creates complete drafts and deletes only audited unpublished drafts');
+$check(str_contains($assessmentSaveSource, "result_text")
+    && str_contains($assessmentSaveSource, 'test.updated'), 'assessment editor manages canonical test metadata and participant result messages');
 $check(str_contains($correctionSource, 'study_interest_result_revisions')
     && str_contains($correctionSource, 'study_interest_score_versioned')
     && str_contains($correctionSource, 'expected_revision')
     && str_contains($correctionSource, 'plugin.study-interest.responses.view')
-    && str_contains($correctionSource, 'result.corrected'), 'result correction recalculates and records an authorized audited optimistic revision');
+    && str_contains($correctionSource, 'result.corrected')
+    && str_contains($correctionSource, 'changed_questions')
+    && str_contains($sessionListSource, 'Edit submitted answers'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
 $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
     && str_contains($sessionViewSource, 'plugin.study-interest.contacts.view'), 'session detail separates response and contact access');
 $presentationSaveSource = (string)file_get_contents($root . '/admin/result-page/save.php');
 $publicResultSource = (string)file_get_contents($root . '/public/index.php');
+$publicResultStyles = (string)file_get_contents($root . '/assets/frontend.css');
 $check(str_contains($presentationSaveSource, 'csrf_check')
     && str_contains($presentationSaveSource, 'authorization_lock_actor_permissions')
     && str_contains($presentationSaveSource, 'expected_hash')
@@ -127,10 +154,13 @@ $check(str_contains($presentationSaveSource, 'csrf_check')
 $check(str_contains($publicResultSource, "['mode'] === 'hidden'")
     && str_contains($publicResultSource, "['mode'] === 'masked'")
     && str_contains($publicResultSource, "\$sectionState('directions')")
-    && !str_contains($publicResultSource, 'filter: blur'), 'public result supports full, server-masked, and hidden output without cosmetic-only masking');
+    && str_contains($publicResultSource, 'sie-result-mask-preview')
+    && str_contains($publicResultStyles, 'filter: blur(10px)'), 'public result supports full, safe blurred-mask, and hidden output');
 $check(str_contains($publicResultSource, 'direct_recommendation_limit')
     && str_contains($publicResultSource, "elseif (\$sectionState('pathways') === 'mask')")
     && str_contains($publicResultSource, "elseif (\$sectionState('interpretation') === 'mask')"), 'public result respects the immutable direction limit and masks optional sections without existence disclosure');
+$check(str_contains($publicResultSource, '$assessmentTitle')
+    && str_contains($publicResultSource, '$assessmentDescription'), 'public assessment identity comes from dashboard-managed configuration');
 $participantEditSource = (string)file_get_contents($root . '/admin/participants/edit.php');
 $participantSaveSource = (string)file_get_contents($root . '/admin/participants/save.php');
 $check(str_contains($participantEditSource, 'expected_contact_hash')
@@ -144,6 +174,10 @@ $check(str_contains($frontendSource, 'firstUnanswered < 0 ? data.questions.lengt
 $startSource = (string)file_get_contents($root . '/public/api/start.php');
 $check(str_contains($startSource, "'class_level' => \$classLevel") && str_contains($startSource, 'contact_consent_at_utc')
     && str_contains($startSource, 'Contact consent is required'), 'minimal identity and optional contact consent are validated and stored separately');
+$check(str_contains($startSource, 'configuration_hash')
+    && str_contains($startSource, 'The assessment changed. Reload this page before starting.')
+    && str_contains($publicResultSource, "'versionId'")
+    && str_contains($publicResultSource, '$questionCount'), 'public start is pinned to the displayed version and question count is dynamic');
 
 $presentation = study_interest_result_presentation_normalize([
     'mode' => 'masked',
@@ -163,6 +197,9 @@ $check(study_interest_configuration_errors($configuration) === [], 'packaged bas
 $unsupportedConfiguration = $configuration;
 $unsupportedConfiguration['algorithm_version'] = 'future-unsupported';
 $check(study_interest_configuration_errors($unsupportedConfiguration) !== [], 'unsupported scoring algorithms cannot be published');
+$invalidResultText = $configuration;
+$invalidResultText['result_text']['disclaimer'] = '';
+$check(study_interest_configuration_errors($invalidResultText) !== [], 'participant result messages are required configuration');
 $check(count($configuration['questions']) === 45, 'packaged baseline contains 45 questions');
 $check(count($configuration['dimensions']) === 8, 'packaged baseline contains eight dimensions');
 $check(abs(array_sum(array_column($configuration['sections'], 'weight')) - 1.0) < 0.00001, 'section weights total 100%');
@@ -242,18 +279,18 @@ if (study_interest_xlsx_available()) {
 }
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
-$identityLeak = false;
-$privateTokens = [chr(65) . chr(80) . chr(85), 'apu' . 'j.lan', 'apu' . '.ac.id', '/var/www/' . 'kantor'];
+$deploymentCoupling = false;
+$localPatterns = ['#/var/www/#i', '#\b(?:https?://)?[a-z0-9.-]+\.lan\b#i'];
 foreach ($iterator as $file) {
     $path = $file->getPathname();
     if (!$file->isFile() || $path === __FILE__ || str_contains($path, '/.git/') || str_contains($path, '/.notes/')) continue;
-    if (preg_match('/\.(?:php|json|md|sql|js|css)$/', $path) !== 1) continue;
-    $contents = strtolower((string)file_get_contents($path));
-    foreach ($privateTokens as $token) {
-        if (str_contains($contents, strtolower($token))) { $identityLeak = true; break 2; }
+    if (preg_match('/\.(?:php|json|md|sql|js|css|svg)$/', $path) !== 1) continue;
+    $contents = (string)file_get_contents($path);
+    foreach ($localPatterns as $pattern) {
+        if (preg_match($pattern, $contents) === 1) { $deploymentCoupling = true; break 2; }
     }
 }
-$check(!$identityLeak, 'tracked product source contains no downstream identity');
+$check(!$deploymentCoupling, 'tracked product source contains no local deployment coupling');
 
 if ($failures !== []) {
     fwrite(STDERR, count($failures) . " contract check(s) failed.\n");

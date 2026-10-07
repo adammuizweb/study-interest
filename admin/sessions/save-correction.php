@@ -41,6 +41,11 @@ try {
     ksort($answers);
     ksort($currentAnswers);
     if ($answers === $currentAnswers) throw new DomainException('No response changed. Update at least one answer before creating a revision.');
+    $changedQuestions = [];
+    foreach ($answers as $code => $selected) {
+        $before = (string)($currentAnswers[$code] ?? '');
+        if ($before !== $selected) $changedQuestions[] = $code;
+    }
 
     $currentSnapshot = json_decode((string)$session['result_snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($currentSnapshot)) throw new RuntimeException('Current result snapshot is invalid.');
@@ -79,7 +84,7 @@ try {
     if ($update->rowCount() !== 1) throw new RuntimeException('Result revision conflicted with another request.');
     study_interest_audit($pdo, $studyInterestUserId, 'result.corrected', 'session', $publicId,
         ['revision' => (int)$expectedRevision, 'snapshot_hash' => hash('sha256', (string)$session['result_snapshot_json'])],
-        ['revision' => $nextRevision, 'snapshot_hash' => hash('sha256', $snapshotJson), 'reason' => $reason]);
+        ['revision' => $nextRevision, 'snapshot_hash' => hash('sha256', $snapshotJson), 'reason' => $reason, 'changed_questions' => $changedQuestions]);
     $pdo->commit();
     study_interest_admin_redirect('success', sprintf(__('Corrected result revision %d created.'), $nextRevision), $returnUrl);
 } catch (Throwable $error) {

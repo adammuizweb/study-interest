@@ -7,17 +7,6 @@ require_once __DIR__ . '/includes/scoring.php';
 require_once __DIR__ . '/includes/assessment.php';
 require_once __DIR__ . '/includes/export.php';
 
-function study_interest_quiz_dependency_ready(): bool
-{
-    return function_exists('quiz_extension_api_version')
-        && version_compare(quiz_extension_api_version(), '1.0.0', '>=');
-}
-
-if (!study_interest_quiz_dependency_ready()) {
-    error_log('[study-interest] Quiz extension API is unavailable.');
-    return;
-}
-
 function study_interest_entrypoint(string $route): ?string
 {
     $entrypoints = [
@@ -53,8 +42,8 @@ function study_interest_is_admin_request(): bool
 function study_interest_admin_assets(): void
 {
     if (!study_interest_is_admin_request()) return;
-    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.7.0">' . PHP_EOL;
-    echo '<script src="/static/plugins/study-interest/admin.js?v=0.7.0" defer></script>' . PHP_EOL;
+    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.8.0">' . PHP_EOL;
+    echo '<script src="/static/plugins/study-interest/admin.js?v=0.8.0" defer></script>' . PHP_EOL;
 }
 
 if (function_exists('register_frontend_route')) {

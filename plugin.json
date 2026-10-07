@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "title": "Study Interest Explorer",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
@@ -13,9 +13,7 @@
     "jyavani": ">=2.3.174",
     "php": ">=8.3",
     "extensions": ["pdo", "pdo_mysql", "json", "mbstring", "zip"],
-    "plugins": {
-      "quiz": ">=1.4.13"
-    }
+    "plugins": {}
   },
   "permissions": [
     {
@@ -160,6 +158,30 @@
         "route": "admin/tools/study-interest/assessments/save",
         "file": "admin/assessments/save.php",
         "title": "Save Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/assessments/create",
+        "file": "admin/assessments/create.php",
+        "title": "Create Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/assessments/create-save",
+        "file": "admin/assessments/create-save.php",
+        "title": "Save New Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/assessments/delete",
+        "file": "admin/assessments/delete.php",
+        "title": "Delete Study Interest Assessment",
         "roles": ["admin"],
         "permission": "plugin.study-interest.config.manage",
         "hidden": true
@@ -336,7 +358,8 @@
     "nav": [
       {
         "label": "Study Interest",
-        "icon": "compass",
+        "icon": "clipboard-list",
+        "icon_asset": "static/plugins/study-interest/icon-sidebar.svg",
         "page": "admin/tools/study-interest",
         "parent": "tools",
         "roles": ["admin", "editor"]
@@ -348,7 +371,8 @@
       {"from": "assets/frontend.css", "to": "static/plugins/study-interest/frontend.css"},
       {"from": "assets/frontend.js", "to": "static/plugins/study-interest/frontend.js"},
       {"from": "assets/admin.css", "to": "static/plugins/study-interest/admin.css"},
-      {"from": "assets/admin.js", "to": "static/plugins/study-interest/admin.js"}
+      {"from": "assets/admin.js", "to": "static/plugins/study-interest/admin.js"},
+      {"from": "assets/icon-sidebar.svg", "to": "static/plugins/study-interest/icon-sidebar.svg"}
     ]
   },
   "assets": {"css": [], "js": []}

@@ -6,7 +6,7 @@ adiwira_require_permission($pdo, 'plugin.study-interest.dashboard.access', false
 
 $manifest = plugin_manifest('study-interest');
 $pluginVersion = is_array($manifest) ? (string)($manifest['version'] ?? '') : '';
-$versions = $pdo->query("SELECT v.id,v.version_code,v.status,v.algorithm_version,v.expected_question_count,v.configuration_hash,
+$versions = $pdo->query("SELECT v.id,v.version_code,v.status,v.algorithm_version,v.expected_question_count,v.configuration_hash,v.configuration_json,
     v.created_at_utc,v.published_at_utc,v.retired_at_utc,t.code AS test_code,t.title AS test_title,
     (SELECT COUNT(*) FROM study_interest_sessions s WHERE s.version_id=v.id) AS session_count,
     (SELECT COUNT(*) FROM study_interest_sessions s WHERE s.version_id=v.id AND s.status='completed') AS completed_count
@@ -24,6 +24,8 @@ $totalSessions = 0;
 $totalCompleted = 0;
 $validationById = [];
 foreach ($versions as $row) {
+    $rowConfiguration = json_decode((string)$row['configuration_json'], true);
+    $row['configuration_title'] = is_array($rowConfiguration) && trim((string)($rowConfiguration['title'] ?? '')) !== '' ? trim((string)$rowConfiguration['title']) : (string)$row['test_title'];
     if ((string)$row['version_code'] === $packagedVersion) $packagedImported = true;
     if ((string)$row['status'] === 'published' && $publishedVersion === null) $publishedVersion = $row;
     $totalSessions += (int)$row['session_count'];
@@ -44,6 +46,7 @@ $programCount = count($packagedConfiguration['programs'] ?? []);
       <p><?= study_interest_h(__('Manage immutable assessment versions, monitor participation, and review result quality from one place.')) ?></p>
     </div>
     <div class="sie-admin-actions">
+      <?php if ($canManage): ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('assessments/create')) ?>"><?= study_interest_h(__('New assessment')) ?></a><?php endif; ?>
       <?php if (study_interest_admin_can('plugin.study-interest.sessions.view')): ?><a class="adam-button secondary" href="<?= study_interest_h(study_interest_admin_url('sessions')) ?>"><?= study_interest_h(__('Manage sessions')) ?></a><?php endif; ?>
       <a class="adam-button" href="/study-interest/" target="_blank" rel="noopener"><?= study_interest_h(__('Open public assessment')) ?> <span aria-hidden="true">&nearr;</span></a>
     </div>
@@ -58,7 +61,7 @@ $programCount = count($packagedConfiguration['programs'] ?? []);
       <?php if ($publishedVersion === null): ?>
         <div class="sie-live-empty"><span aria-hidden="true">+</span><h2><?= study_interest_h(__('Publish a version to begin')) ?></h2><p><?= study_interest_h(__('Participants cannot start until a reviewed draft has been published.')) ?></p></div>
       <?php else: ?>
-        <div class="sie-live-title"><div><span><?= study_interest_h((string)$publishedVersion['version_code']) ?></span><h2><?= study_interest_h((string)$publishedVersion['test_title']) ?></h2></div><strong><?= (int)$publishedVersion['expected_question_count'] ?><small><?= study_interest_h(__('questions')) ?></small></strong></div>
+        <div class="sie-live-title"><div><span><?= study_interest_h((string)$publishedVersion['version_code']) ?></span><h2><?= study_interest_h((string)$publishedVersion['configuration_title']) ?></h2></div><strong><?= (int)$publishedVersion['expected_question_count'] ?><small><?= study_interest_h(__('questions')) ?></small></strong></div>
         <div class="sie-live-meta"><span><?= study_interest_h(__('Algorithm')) ?><b><?= study_interest_h((string)$publishedVersion['algorithm_version']) ?></b></span><span><?= study_interest_h(__('Published')) ?><b><?= study_interest_h(study_interest_admin_datetime((string)$publishedVersion['published_at_utc'])) ?></b></span></div>
         <div class="sie-live-stats"><div><strong><?= (int)$publishedVersion['session_count'] ?></strong><span><?= study_interest_h(__('Sessions')) ?></span></div><div><strong><?= (int)$publishedVersion['completed_count'] ?></strong><span><?= study_interest_h(__('Completed')) ?></span></div><div><strong><?= number_format($publishedCompletionRate, 0) ?>%</strong><span><?= study_interest_h(__('Completion')) ?></span></div></div>
       <?php endif; ?>

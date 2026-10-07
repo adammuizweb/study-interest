@@ -18,12 +18,14 @@ $versionId = $selectedVersion !== null ? (int)$selectedVersion['id'] : 0;
 $summary = ['total' => 0, 'completed' => 0, 'in_progress' => 0];
 $programs = $dimensions = $flags = $recent = [];
 $programLabels = $dimensionLabels = [];
+$selectedTitle = $selectedVersion !== null ? (string)$selectedVersion['test_title'] : __('No assessment version');
 if ($versionId > 0) {
     $configuration = json_decode((string)$selectedVersion['configuration_json'], true);
     if (is_array($configuration)) {
         if (!hash_equals((string)$selectedVersion['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) throw new RuntimeException('Assessment configuration integrity check failed.');
         foreach ($configuration['programs'] ?? [] as $code => $program) $programLabels[(string)$code] = (string)($program['label'] ?? $code);
         foreach ($configuration['dimensions'] ?? [] as $code => $dimension) $dimensionLabels[(string)$code] = (string)($dimension['label'] ?? $code);
+        if (trim((string)($configuration['title'] ?? '')) !== '') $selectedTitle = trim((string)$configuration['title']);
     }
     $summaryStatement = $pdo->prepare("SELECT COUNT(*) AS total,SUM(status='completed') AS completed,SUM(status='started') AS in_progress FROM study_interest_sessions WHERE version_id=?");
     $summaryStatement->execute([$versionId]);
@@ -82,7 +84,7 @@ $pdo->commit();
   <section class="sie-guidance-card"><strong><?= study_interest_h(__('How to use this report')) ?></strong><p><?= study_interest_h(__('Use cohort analytics to spot leading study directions, compare average interest dimensions, and identify response patterns that may need review. It summarizes groups and should not be used to diagnose or rank individual ability.')) ?></p></section>
 
   <section class="sie-filter-bar">
-    <div><span><?= study_interest_h(__('Active report')) ?></span><strong><?= study_interest_h($selectedVersion !== null ? (string)$selectedVersion['test_title'] : __('No assessment version')) ?></strong></div>
+    <div><span><?= study_interest_h(__('Active report')) ?></span><strong><?= study_interest_h($selectedTitle) ?></strong></div>
     <form method="get" action="<?= study_interest_h(rtrim((string)ADMIN_BASE_PATH, '/') . '/') ?>">
       <input type="hidden" name="page" value="admin/tools/study-interest/results">
       <label><span><?= study_interest_h(__('Assessment version')) ?></span><select class="adam-input" name="version_id" data-sie-autosubmit><?php foreach ($versions as $version): ?><option value="<?= (int)$version['id'] ?>" <?= (int)$version['id'] === $versionId ? 'selected' : '' ?>><?= study_interest_h((string)$version['version_code']) ?> &middot; <?= study_interest_h(__(ucfirst((string)$version['status']))) ?></option><?php endforeach; ?></select></label>

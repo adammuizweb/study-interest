@@ -192,15 +192,31 @@ a { color: inherit; }
 .sie-next-steps > p { margin: 0; }
 .sie-button-light { justify-self: start; background: #fff; color: var(--navy); }
 .sie-disclaimer { margin-top: 26px; color: var(--muted); font-size: .76rem; text-align: center; }
-.sie-result-access-notice { width: min(980px, calc(100% - 64px)); min-height: 520px; display: grid; align-content: center; justify-items: start; margin: 20px auto 0; padding: clamp(42px, 8vw, 92px); overflow: hidden; border-radius: 34px; background: var(--navy); color: #fff; box-shadow: var(--shadow); }
-.sie-result-access-mark { width: 72px; height: 72px; display: block; margin-bottom: 56px; border: 18px solid var(--lime); border-radius: 50%; box-shadow: 28px 18px 0 -10px var(--coral); }
-.sie-result-access-notice .sie-kicker { color: var(--lime); }
-.sie-result-access-notice h1 { max-width: 760px; margin: 0; color: #fff; font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: .94; letter-spacing: -.065em; }
-.sie-result-access-notice > p:not(.sie-kicker) { max-width: 700px; margin: 24px 0 34px; color: #cbd1e6; font-size: 1.05rem; line-height: 1.65; }
-.sie-result-mask { width: min(1100px, calc(100% - 64px)); min-height: 230px; display: grid; grid-template-columns: 92px 1fr; gap: 30px; align-items: center; margin: 34px auto; padding: clamp(30px, 5vw, 54px); border: 2px dashed #9da5c4; border-radius: 26px; background: color-mix(in srgb, var(--paper) 88%, #dfe3f2); }
-.sie-result-mask > span { width: 80px; height: 80px; display: block; border: 16px solid #c8cde0; border-right-color: var(--violet); border-radius: 50%; transform: rotate(-25deg); }
-.sie-result-mask h2 { margin: 0; color: var(--navy); font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.045em; }
-.sie-result-mask div > p:last-child { max-width: 720px; margin: 12px 0 0; color: var(--muted); }
+.sie-result-mask { position: relative; width: min(1100px, calc(100% - 64px)); min-height: 360px; display: grid; place-items: center; margin: 34px auto; overflow: hidden; border: 2px solid #aeb5d1; border-radius: 28px; background: #e5e8f2; box-shadow: var(--shadow); isolation: isolate; }
+.sie-result-mask-page { width: min(1200px, calc(100% - 64px)); min-height: 620px; margin-top: 20px; border-radius: 34px; }
+.sie-result-mask-preview { position: absolute; z-index: -1; inset: -24px; display: grid; align-content: center; gap: 34px; padding: clamp(42px, 7vw, 90px); background: linear-gradient(145deg, #f9faf7, #d9def8); filter: blur(10px); opacity: .78; transform: scale(1.04); pointer-events: none; user-select: none; }
+.sie-mask-preview-heading { display: grid; gap: 16px; }
+.sie-mask-preview-heading i { width: min(62%, 560px); height: 48px; display: block; border-radius: 12px; background: var(--navy); }
+.sie-mask-preview-heading i:last-child { width: min(42%, 380px); height: 18px; background: #7d8598; }
+.sie-mask-preview-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.sie-mask-preview-cards > span { min-height: 190px; display: grid; align-content: space-between; padding: 24px; border: 2px solid var(--navy); border-radius: 22px; background: #fff; }
+.sie-mask-preview-cards > span:nth-child(2) { background: #d8dcff; }
+.sie-mask-preview-cards > span:nth-child(3) { background: #ffe0d8; }
+.sie-mask-preview-cards i { width: 40px; height: 40px; border-radius: 50%; background: var(--navy); }
+.sie-mask-preview-cards b { width: 75%; height: 28px; border-radius: 8px; background: var(--navy); }
+.sie-mask-preview-cards small { width: 52%; height: 13px; border-radius: 99px; background: #757d90; }
+.sie-mask-preview-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 34px; }
+.sie-mask-preview-bars > span { height: 12px; overflow: hidden; border-radius: 99px; background: #c2c8d8; }
+.sie-mask-preview-bars i { width: 68%; height: 100%; display: block; border-radius: inherit; background: var(--violet); }
+.sie-mask-preview-bars span:nth-child(2) i { width: 84%; }
+.sie-mask-preview-bars span:nth-child(3) i { width: 54%; }
+.sie-mask-preview-bars span:nth-child(4) i { width: 72%; }
+.sie-result-mask-copy { width: min(680px, calc(100% - 48px)); z-index: 1; padding: clamp(28px, 5vw, 52px); border: 1px solid rgba(255, 255, 255, .9); border-radius: 24px; background: rgba(255, 255, 255, .88); box-shadow: 0 20px 55px rgba(16, 22, 47, .2); backdrop-filter: blur(16px); text-align: center; }
+.sie-result-mask-copy .sie-kicker { color: #4d5bd5; }
+.sie-result-mask-copy h1, .sie-result-mask-copy h2 { margin: 0; color: var(--navy); font-size: clamp(2rem, 5vw, 4.5rem); line-height: .96; letter-spacing: -.055em; }
+.sie-result-mask-copy h2 { font-size: clamp(1.8rem, 4vw, 3rem); }
+.sie-result-mask-copy > p:not(.sie-kicker) { max-width: 560px; margin: 20px auto 0; color: var(--muted); font-size: 1rem; }
+.sie-result-mask-copy .sie-button { margin-top: 28px; }
 
 /* Error state */
 .sie-state-page { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 28px; background: var(--navy); }
@@ -277,10 +293,13 @@ a { color: inherit; }
   .sie-signal-3 { width: 120px; height: 120px; }
   .sie-signal strong { font-size: .84rem; }
   .sie-result-section, .sie-dimensions, .sie-insight, .sie-pathway, .sie-next-steps, .sie-disclaimer { width: calc(100% - 36px); }
-  .sie-result-access-notice, .sie-result-mask { width: calc(100% - 36px); }
-  .sie-result-access-notice { min-height: 440px; padding: 40px 28px; border-radius: 26px; }
-  .sie-result-mask { min-height: 0; grid-template-columns: 1fr; gap: 22px; padding: 30px 24px; }
-  .sie-result-mask > span { width: 64px; height: 64px; border-width: 13px; }
+  .sie-result-mask { width: calc(100% - 36px); min-height: 360px; }
+  .sie-result-mask-page { width: calc(100% - 24px); min-height: 560px; margin-top: 4px; border-radius: 24px; }
+  .sie-result-mask-preview { gap: 22px; padding: 34px 24px; }
+  .sie-mask-preview-cards { grid-template-columns: 1fr; }
+  .sie-mask-preview-cards > span { min-height: 130px; }
+  .sie-mask-preview-bars { grid-template-columns: 1fr; }
+  .sie-result-mask-copy { width: calc(100% - 32px); padding: 30px 22px; border-radius: 20px; }
   .sie-result-section { padding: 68px 0 58px; }
   .sie-result-card { min-height: 270px; }
   .sie-empty-result { grid-template-columns: 1fr; }

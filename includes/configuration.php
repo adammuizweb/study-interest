@@ -26,6 +26,15 @@ function study_interest_configuration_errors(array $configuration): array
         if (preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', $identity) !== 1) $errors[] = "Configuration {$identityKey} is invalid.";
     }
     if (!in_array((string)($configuration['algorithm_version'] ?? ''), study_interest_supported_algorithm_versions(), true)) $errors[] = 'The scoring algorithm version is not supported.';
+    $title = trim((string)($configuration['title'] ?? ''));
+    $description = trim((string)($configuration['description'] ?? ''));
+    if ($title === '' || mb_strlen($title) > 255) $errors[] = 'Configuration title is required and must not exceed 255 characters.';
+    if (mb_strlen($description) > 2000) $errors[] = 'Configuration description must not exceed 2000 characters.';
+    $resultText = is_array($configuration['result_text'] ?? null) ? $configuration['result_text'] : [];
+    foreach (['score_name' => 255, 'no_dominant_title' => 255, 'no_dominant_body' => 2000, 'multidisciplinary' => 2000, 'biomedical_biotechnology_overlap' => 2000, 'midwifery_overlap' => 2000, 'professional_pathway' => 255, 'professional_pathway_body' => 2000, 'disclaimer' => 2000] as $key => $maximum) {
+        $value = $resultText[$key] ?? null;
+        if (!is_string($value) || trim($value) === '' || mb_strlen($value) > $maximum || preg_match('//u', $value) !== 1 || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) === 1) $errors[] = "Result message {$key} is invalid.";
+    }
     $dimensions = is_array($configuration['dimensions'] ?? null) ? $configuration['dimensions'] : [];
     $sections = is_array($configuration['sections'] ?? null) ? $configuration['sections'] : [];
     $questions = is_array($configuration['questions'] ?? null) ? $configuration['questions'] : [];
@@ -351,6 +360,9 @@ function study_interest_publish_errors(PDO $pdo, int $versionId): array
 
 function study_interest_publish_version(PDO $pdo, int $versionId, int $actorId): void
 {
+    $publicationLock = $pdo->prepare('SELECT value FROM settings WHERE `key`=? LIMIT 1 FOR UPDATE');
+    $publicationLock->execute(['study_interest_publication_lock']);
+    if ($publicationLock->fetchColumn() === false) throw new RuntimeException('Assessment publication lock is unavailable. Reactivate the plugin to run migrations.');
     $identity = $pdo->prepare('SELECT test_id FROM study_interest_test_versions WHERE id=? LIMIT 1');
     $identity->execute([$versionId]);
     $testId = (int)$identity->fetchColumn();
@@ -365,8 +377,8 @@ function study_interest_publish_version(PDO $pdo, int $versionId, int $actorId):
     $errors = study_interest_publish_errors($pdo, $versionId);
     if ($errors !== []) throw new DomainException(implode(' ', $errors));
     $now = study_interest_now_utc();
-    $pdo->prepare("UPDATE study_interest_test_versions SET status='retired',retired_at_utc=?,updated_at_utc=? WHERE test_id=? AND status='published' AND id<>?")
-        ->execute([$now, $now, (int)$row['test_id'], $versionId]);
+    $pdo->prepare("UPDATE study_interest_test_versions SET status='retired',retired_at_utc=?,updated_at_utc=? WHERE status='published' AND id<>?")
+        ->execute([$now, $now, $versionId]);
     $pdo->prepare("UPDATE study_interest_test_versions SET status='published',published_at_utc=?,retired_at_utc=NULL,updated_at_utc=? WHERE id=? AND status='draft'")
         ->execute([$now, $now, $versionId]);
     study_interest_audit($pdo, $actorId, 'configuration.published', 'test_version', (string)$versionId,

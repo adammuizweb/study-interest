@@ -18,12 +18,14 @@ $entities = $pdo->query('SELECT DISTINCT entity_type FROM study_interest_audit_l
 $query = ['action' => $action, 'entity' => $entity];
 $actionLabels = [
     'configuration.imported' => __('Configuration imported'), 'configuration.published' => __('Assessment published'),
+    'configuration.deleted' => __('Assessment draft deleted'), 'configuration.cloned' => __('Assessment draft cloned'),
+    'configuration.updated' => __('Assessment configuration updated'), 'test.created' => __('Assessment created'), 'test.updated' => __('Assessment identity updated'),
     'question.created' => __('Question created'), 'question.updated' => __('Question updated'), 'question.deleted' => __('Question deleted'),
     'participant.updated' => __('Participant updated'), 'session.deleted' => __('Session deleted'),
     'result.corrected' => __('Result corrected'), 'results.exported' => __('Anonymous results exported'), 'workspace.exported' => __('Workspace data exported'),
     'result_presentation.updated' => __('Result page policy updated'),
 ];
-$entityLabels = ['version' => __('Assessment version'), 'question' => __('Question'), 'session' => __('Participant session'), 'result_export' => __('Result export'), 'participants_export' => __('Participant export'), 'sessions_export' => __('Session export'), 'result_presentation' => __('Result page policy')];
+$entityLabels = ['test' => __('Assessment'), 'test_version' => __('Assessment version'), 'version' => __('Assessment version'), 'question' => __('Question'), 'session' => __('Participant session'), 'result_export' => __('Result export'), 'participants_export' => __('Participant export'), 'sessions_export' => __('Session export'), 'result_presentation' => __('Result page policy')];
 ?>
 <div class="sie-admin sie-workspace-page">
   <?php study_interest_admin_nav('audit'); ?>

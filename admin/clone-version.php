@@ -12,8 +12,15 @@ if ($sourceId === false || preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', $versi
 try {
     $pdo->beginTransaction();
     if (!authorization_lock_actor_permissions($pdo, $studyInterestUserId) || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.config.manage')) throw new RuntimeException('Configuration permission changed.');
-    $source = $pdo->prepare('SELECT configuration_json,configuration_hash,version_code FROM study_interest_test_versions WHERE id=? LIMIT 1');
-    $source->execute([(int)$sourceId]);
+    $identity = $pdo->prepare('SELECT test_id FROM study_interest_test_versions WHERE id=? LIMIT 1');
+    $identity->execute([(int)$sourceId]);
+    $testId = (int)$identity->fetchColumn();
+    if ($testId < 1) throw new DomainException('Source assessment version was not found.');
+    $test = $pdo->prepare('SELECT id FROM study_interest_tests WHERE id=? LIMIT 1 FOR UPDATE');
+    $test->execute([$testId]);
+    if ((int)$test->fetchColumn() !== $testId) throw new DomainException('Source assessment was not found.');
+    $source = $pdo->prepare('SELECT configuration_json,configuration_hash,version_code FROM study_interest_test_versions WHERE id=? AND test_id=? LIMIT 1 FOR UPDATE');
+    $source->execute([(int)$sourceId, $testId]);
     $row = $source->fetch(PDO::FETCH_ASSOC);
     if (!is_array($row)) throw new DomainException('Source assessment version was not found.');
     $exists = $pdo->prepare('SELECT id FROM study_interest_test_versions WHERE version_code=? LIMIT 1 FOR UPDATE');
