@@ -18,6 +18,7 @@ $check(($manifest['version'] ?? null) === '0.9.0', 'plugin version is 0.9.0');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
+$check(($manifest['icon'] ?? null) === 'assets/icon-sidebar.svg' && is_file($root . '/assets/icon-sidebar.svg'), 'package declares a bundled Store icon');
 $check(in_array('pdo_mysql', $manifest['requires']['extensions'] ?? [], true), 'MySQL PDO requirement is explicit');
 $check(in_array('zip', $manifest['requires']['extensions'] ?? [], true), 'ZIP requirement supports native Excel exports');
 

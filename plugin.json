@@ -2,6 +2,7 @@
   "name": "study-interest",
   "version": "0.9.0",
   "title": "Study Interest Explorer",
+  "icon": "assets/icon-sidebar.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
   "author_uri": "https://adammuiz.com",
