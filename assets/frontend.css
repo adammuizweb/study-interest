@@ -243,13 +243,13 @@ a { color: inherit; }
   .sie-assessment-header .sie-logo { font-size: .78rem; }
   .sie-assessment-header .sie-logo-mark { width: 24px; height: 24px; flex-basis: 24px; border-radius: 7px; }
   .sie-progress-wrap > div { margin-bottom: 5px; }
-  .sie-question { padding: 30px 18px calc(120px + env(safe-area-inset-bottom)); }
-  .sie-question-meta { align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-  .sie-question h1 { font-size: clamp(1.75rem, 8.2vw, 2.35rem); line-height: 1.1; }
+  .sie-question { padding: 24px 18px calc(120px + env(safe-area-inset-bottom)); }
+  .sie-question-meta { align-items: center; gap: 9px; margin-bottom: 12px; }
+  .sie-question h1 { font-size: clamp(1.55rem, 7vw, 2rem); line-height: 1.1; }
   .sie-question h1::after { width: 48px; height: 6px; margin-top: 20px; }
   .sie-question-prompt { margin-top: 18px; font-size: .94rem; }
-  .sie-options { gap: 9px; margin-top: 26px; }
-  .sie-options label { min-height: 58px; grid-template-columns: 34px 1fr; gap: 11px; padding: 10px 12px; border-radius: 13px; }
+  .sie-options { gap: 8px; margin-top: 22px; }
+  .sie-options label { min-height: 54px; grid-template-columns: 34px 1fr; gap: 11px; padding: 8px 12px; border-radius: 13px; }
   .sie-option-marker { width: 31px; height: 31px; border-radius: 8px; }
   .sie-option-text { font-size: .93rem; }
   .sie-options label:hover { transform: none; }
