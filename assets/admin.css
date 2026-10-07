@@ -227,6 +227,15 @@
 .sie-dimension-editor article label:last-child { grid-column: 2; }
 .sie-dimension-editor textarea { min-height: 76px; resize: vertical; }
 .sie-program-editor article { padding: 1rem; border: 1px solid var(--sie-border); border-radius: 13px; background: var(--sie-surface); }
+.sie-builder-list, .sie-direction-builder { display: grid; gap: .7rem; }
+.sie-builder-list > article, .sie-direction-builder > article { display: grid; gap: .55rem; padding: .9rem; border: 1px solid var(--sie-border); border-radius: 13px; background: var(--sie-card); }
+.sie-builder-list > article > form:first-child { display: grid; grid-template-columns: 90px minmax(180px, .8fr) minmax(110px, .25fr) minmax(90px, .2fr) auto; gap: .65rem; align-items: end; }
+.sie-builder-list > article > form:first-child > code { align-self: center; color: var(--sie-violet); font-weight: 900; overflow-wrap: anywhere; }
+.sie-builder-list > article > form:first-child .is-grow { min-width: 0; }
+.sie-builder-list > article.is-new > form:first-child { grid-template-columns: 130px minmax(180px, .8fr) minmax(110px, .25fr) minmax(90px, .2fr) auto; }
+.sie-builder-list label > span, .sie-direction-builder label > span { display: block; margin-bottom: .3rem; color: var(--sie-muted); font-size: .65rem; font-weight: 800; text-transform: uppercase; }
+.sie-direction-builder > article > form:first-child { display: grid; gap: .8rem; }
+.sie-direction-builder > article > form:last-child, .sie-builder-list > article > form:last-child { justify-self: end; }
 .sie-program-editor__head { display: grid; grid-template-columns: 110px minmax(220px, 1fr) minmax(180px, .35fr); gap: .7rem; align-items: end; }
 .sie-program-editor__head > code { align-self: center; overflow-wrap: anywhere; color: var(--sie-violet); font-weight: 900; }
 .sie-program-weight-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .55rem; margin-top: .8rem; padding-top: .8rem; border-top: 1px solid var(--sie-border); }
@@ -384,6 +393,7 @@
   .sie-segment-control label { flex: 1; }
   .sie-segment-control span { min-width: 0; }
   .sie-configuration-rows article, .sie-program-editor__head { grid-template-columns: 1fr; align-items: stretch; }
+  .sie-builder-list > article > form:first-child, .sie-builder-list > article.is-new > form:first-child { grid-template-columns: 1fr; align-items: stretch; }
   .sie-configuration-rows article > span, .sie-program-editor__head > code { align-self: auto; }
   .sie-program-weight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sie-draft-panel form, .sie-list-filter, .sie-list-filter.is-compact { grid-template-columns: 1fr; }

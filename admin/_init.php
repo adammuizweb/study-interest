@@ -41,6 +41,7 @@ function study_interest_admin_nav(string $active): void
     $items = [
         ['overview', '', __('Overview'), 'plugin.study-interest.dashboard.access'],
         ['assessments', 'assessments', __('Assessments'), 'plugin.study-interest.config.view'],
+        ['structure', 'structure', __('Structure'), 'plugin.study-interest.config.view'],
         ['questions', 'questions', __('Question bank'), 'plugin.study-interest.config.view'],
         ['participants', 'participants', __('Participants'), 'plugin.study-interest.contacts.view'],
         ['sessions', 'sessions', __('Sessions'), 'plugin.study-interest.sessions.view'],

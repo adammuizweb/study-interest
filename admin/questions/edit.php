@@ -40,7 +40,7 @@ if ($isNew) while (count($options) < 5) $options[] = ['code' => '', 'label' => '
 
         <section class="sie-editor-panel">
           <div class="sie-panel-title"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Answer model')) ?></span><h2><?= study_interest_h(__('Answer options and hidden scores')) ?></h2></div><strong data-sie-option-count><?= count($options) ?></strong></div>
-          <p class="sie-panel-note"><?= study_interest_h(__('Add, edit, or remove answer choices here. Every saved option needs a unique code, participant label, and at least one dimension score.')) ?></p>
+          <p class="sie-panel-note"><?= study_interest_h((string)($configuration['algorithm_version'] ?? '') === 'baseline-1.0' ? __('Add, edit, or remove answer choices here. Every saved option needs a unique code, participant label, and at least one dimension score.') : __('Add, edit, or remove answer choices here. Scores may be zero; publication checks ensure every dimension is meaningfully measured.')) ?></p>
           <div class="sie-option-editor" data-sie-option-editor data-next-index="<?= count($options) ?>">
             <?php foreach ($options as $index => $option): ?>
               <article data-sie-option-row>

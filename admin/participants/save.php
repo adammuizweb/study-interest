@@ -12,18 +12,29 @@ try {
     if (preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i', $publicId) !== 1) throw new DomainException('Participant record is invalid.');
     $expectedContactHash = trim((string)($_POST['expected_contact_hash'] ?? ''));
     if (preg_match('/\A[a-f0-9]{64}\z/', $expectedContactHash) !== 1) throw new DomainException('Participant snapshot revision is invalid.');
-    $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120);
-    $school = mb_substr(trim((string)($_POST['school'] ?? '')), 0, 191);
-    $classLevel = mb_substr(trim((string)($_POST['class_level'] ?? '')), 0, 40);
-    $email = mb_substr(trim((string)($_POST['email'] ?? '')), 0, 191);
-    $phone = mb_substr(trim((string)($_POST['phone'] ?? '')), 0, 40);
     $contactConsent = isset($_POST['contact_consent']);
-    if (mb_strlen($name) < 2 || mb_strlen($school) < 2 || $classLevel === '') throw new DomainException('Name, school, and current stage are required.');
-    if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) throw new DomainException('Email is invalid.');
-    if ($phone !== '' && preg_match('/\A[0-9+().\- ]{6,40}\z/', $phone) !== 1) throw new DomainException('Phone number is invalid.');
-    if (($email !== '' || $phone !== '') && !$contactConsent) throw new DomainException('Contact consent is required when contact details are stored.');
-    $contact = ['name' => $name, 'school' => $school, 'class_level' => $classLevel];
-    if ($contactConsent) { $contact['email'] = $email; $contact['phone'] = $phone; }
+    $postedContact = is_array($_POST['contact'] ?? null) ? $_POST['contact'] : [];
+    $configurationStatement = $pdo->prepare('SELECT v.configuration_json,v.configuration_hash FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.public_id=? LIMIT 1');
+    $configurationStatement->execute([$publicId]);
+    $version = $configurationStatement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($version)) throw new DomainException('Participant record was not found.');
+    $configuration = json_decode((string)$version['configuration_json'], true);
+    if (!is_array($configuration) || !hash_equals((string)$version['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) throw new RuntimeException('Assessment configuration integrity check failed.');
+    if ((int)($configuration['schema_version'] ?? 1) >= 2) {
+        $contact = study_interest_contact_from_input($postedContact, $configuration, $contactConsent);
+    } else {
+        $name = mb_substr(trim((string)($postedContact['name'] ?? '')), 0, 120);
+        $school = mb_substr(trim((string)($postedContact['school'] ?? '')), 0, 191);
+        $classLevel = mb_substr(trim((string)($postedContact['class_level'] ?? '')), 0, 40);
+        $email = mb_substr(trim((string)($postedContact['email'] ?? '')), 0, 191);
+        $phone = mb_substr(trim((string)($postedContact['phone'] ?? '')), 0, 40);
+        if (mb_strlen($name) < 2 || mb_strlen($school) < 2 || $classLevel === '') throw new DomainException('Name, school, and current stage are required.');
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) throw new DomainException('Email is invalid.');
+        if ($phone !== '' && preg_match('/\A[0-9+().\- ]{6,40}\z/', $phone) !== 1) throw new DomainException('Phone number is invalid.');
+        if (($email !== '' || $phone !== '') && !$contactConsent) throw new DomainException('Contact consent is required when contact details are stored.');
+        $contact = ['name' => $name, 'school' => $school, 'class_level' => $classLevel];
+        if ($contactConsent) { $contact['email'] = $email; $contact['phone'] = $phone; }
+    }
     $contactJson = json_encode($contact, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $pdo->beginTransaction();
     if (!authorization_lock_actor_permissions($pdo, $studyInterestUserId) || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.contacts.manage')) throw new RuntimeException('Participant management permission changed.');

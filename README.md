@@ -9,15 +9,24 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.8.0` provides append-only migrations, a packaged 45-question draft,
-publication validation, immutable configuration snapshots, consent, private
-browser sessions, autosave/resume, server-side scoring, recommendations,
-response-quality flags, normalized result storage, and participant results.
-The public start flow collects bounded minimal identity fields and keeps optional
-contact details behind a separate contact-consent choice.
-The dashboard can create and delete unpublished assessments, edit test names,
-descriptions, scoring configuration, result messages, questions, and answer
-options, and publish reviewed immutable versions. It also includes participant
+Version `0.9.0` provides a generic schema-v2 assessment builder with a neutral
+18-question English starter and a blank starting point. Dashboard authors can
+create and remove sections, dimensions, and study directions; edit questions,
+answer scoring, direction weights, thresholds, classifications, interpretation
+rules, participant intake fields, consent and privacy copy, and all primary
+public/result labels without editing PHP. The starter is illustrative and is not
+presented as a validated psychometric instrument.
+
+The plugin also provides append-only migrations, publication validation,
+immutable configuration snapshots, private browser sessions, autosave/resume,
+server-side versioned scoring, normalized result storage, and participant
+results. Intake fields are individually enabled and required, while contact
+details remain behind a separate contact-consent choice. Published versions
+retain their frozen configuration and scoring algorithm, including historical
+`baseline-1.0` versions.
+
+The dashboard can create and delete unpublished assessments and publish reviewed
+immutable versions. It also includes participant
 editing, session operations, response-level review, cohort analytics, an
 activity log, and audited filtered CSV or Excel exports. A separate anonymous
 result export excludes contact data. Admins can edit submitted answers through
@@ -31,9 +40,9 @@ is enabled, each result section can independently be shown, safely blurred, or
 omitted; masking never sends protected scores or labels in participant HTML.
 Only one published assessment is live on the public entry route at a time.
 
-The packaged baseline is never published automatically. An authorized reviewer
-must import it as a draft and explicitly publish it after reviewing the
-questionnaire and compatibility weights.
+No assessment is published automatically. An authorized reviewer must create or
+import a draft and explicitly publish it after reviewing the questions, scoring,
+participant copy, and direction weights.
 
 ## Routes
 

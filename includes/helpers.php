@@ -40,11 +40,11 @@ function study_interest_result_presentation_defaults(): array
             'next_steps' => 'show',
             'disclaimer' => 'show',
         ],
-        'masked_title' => 'Hasilmu sedang ditinjau',
-        'masked_message' => 'Admin akan menghubungimu dan memberitahu hasil test kamu.',
-        'hidden_title' => 'Hasil belum dapat ditampilkan',
-        'hidden_message' => 'Pengelola belum membuka halaman hasil untuk peserta.',
-        'section_mask_message' => 'Admin akan menghubungimu dan memberitahu hasil test kamu.',
+        'masked_title' => 'Your result is being reviewed',
+        'masked_message' => 'An authorized administrator will provide information about this result.',
+        'hidden_title' => 'This result is not available yet',
+        'hidden_message' => 'The result page has not been made available to participants.',
+        'section_mask_message' => 'An authorized administrator will provide information about this part of the result.',
     ];
 }
 
@@ -83,8 +83,8 @@ function study_interest_result_presentation_fail_closed(): array
 {
     $policy = study_interest_result_presentation_defaults();
     $policy['mode'] = 'hidden';
-    $policy['hidden_title'] = 'Hasil sementara tidak tersedia';
-    $policy['hidden_message'] = 'Pengaturan akses hasil tidak dapat diverifikasi. Silakan hubungi pengelola layanan.';
+    $policy['hidden_title'] = 'This result is temporarily unavailable';
+    $policy['hidden_message'] = 'The result-access policy could not be verified. Contact the service administrator.';
     return $policy;
 }
 

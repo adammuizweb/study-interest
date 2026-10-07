@@ -5,14 +5,14 @@ header('Cache-Control: no-store, private');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self'");
-$page_title = 'Peta Minat Studi';
-$page_language = 'id';
+$page_title = 'Study Interest Explorer';
+$page_language = 'en';
 $page_class = 'sie-page';
 
 if (!function_exists('stateless_csrf_token')) {
     http_response_code(503);
     $page_class .= ' sie-state-page';
-    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">LAYANAN TIDAK TERSEDIA</p><h1>Eksplorasi belum dapat dimulai.</h1><p>Layanan keamanan yang dibutuhkan sedang tidak tersedia. Silakan coba kembali beberapa saat lagi.</p></main>';
+    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">SERVICE UNAVAILABLE</p><h1>The assessment cannot start.</h1><p>A required security service is unavailable. Try again shortly.</p></main>';
     require __DIR__ . '/layout.php';
     return;
 }
@@ -24,27 +24,28 @@ $session = $publicId !== '' ? study_interest_session($pdo, $publicId) : null;
 if ($publicId !== '' && $session === null) {
     http_response_code(404);
     $page_class .= ' sie-state-page';
-    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">SESI PRIVAT</p><h1>Sesi ini tidak tersedia di browser ini.</h1><p>Tautan hasil dilindungi oleh akses browser yang memulai eksplorasi.</p><a class="sie-button" href="/study-interest/">Mulai eksplorasi baru <span aria-hidden="true">&rarr;</span></a></main>';
+    $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">PRIVATE SESSION</p><h1>This session is not available in this browser.</h1><p>The session link requires the browser that started the assessment.</p><a class="sie-button" href="/study-interest/">Start a new assessment <span aria-hidden="true">&rarr;</span></a></main>';
 } elseif ($session !== null && (string)$session['status'] === 'completed') {
     $snapshot = json_decode((string)$session['result_snapshot_json'], true);
     if (!is_array($snapshot)) {
         http_response_code(503);
         $page_class .= ' sie-state-page';
-        $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">HASIL TIDAK TERSEDIA</p><h1>Hasil belum dapat ditampilkan.</h1><p>Data hasil sesi ini tidak dapat dibaca. Silakan hubungi pengelola layanan.</p></main>';
+        $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">RESULT UNAVAILABLE</p><h1>This result cannot be displayed.</h1><p>The result snapshot could not be read. Contact the service administrator.</p></main>';
     } else {
         $presentation = study_interest_result_presentation($pdo);
         if ((string)$presentation['mode'] === 'hidden') {
             $page_class .= ' sie-state-page';
-            $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">AKSES HASIL</p><h1>' . study_interest_h((string)$presentation['hidden_title']) . '</h1><p>' . study_interest_h((string)$presentation['hidden_message']) . '</p><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a></main>';
+            $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">RESULT ACCESS</p><h1>' . study_interest_h((string)$presentation['hidden_title']) . '</h1><p>' . study_interest_h((string)$presentation['hidden_message']) . '</p><a class="sie-button" href="/study-interest/">Back <span aria-hidden="true">&rarr;</span></a></main>';
             require __DIR__ . '/layout.php';
             return;
         }
         $page_class .= ' sie-result-page';
         $configuration = study_interest_configuration_from_session($session);
-        $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Peta Minat Studi')) ?: 'Peta Minat Studi';
+        $page_language = (string)($configuration['locale'] ?? 'en');
+        $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Study Interest Explorer')) ?: 'Study Interest Explorer';
         $page_title = $assessmentTitle;
         $programs = is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [];
-        $directionLimit = max(1, min(8, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
+        $directionLimit = max(1, min(50, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
         $recommendations = study_interest_leading_directions($programs, $directionLimit);
         $dimensions = is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [];
         $pathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
@@ -53,10 +54,10 @@ if ($publicId !== '' && $session === null) {
         $dominantLabels = array_values(array_filter($dominantLabels, static fn(string $label): bool => $label !== ''));
         $clarity = (string)($snapshot['profile_clarity']['code'] ?? 'OPEN');
         $clarityText = match ($clarity) {
-            'PRACTICALLY_EQUAL', 'MULTIDISCIPLINARY' => (string)($snapshot['result_text']['multidisciplinary'] ?? 'Beberapa bidang layak kamu eksplorasi lebih jauh.'),
-            'VERY_CLEAR' => 'Arah minat teratasmu terlihat cukup jelas.',
-            'FAIRLY_CLEAR', 'SINGLE_DOMINANT' => 'Kamu sudah memiliki arah awal yang berguna untuk dieksplorasi.',
-            default => 'Profil minatmu masih terbuka ke beberapa arah.',
+            'PRACTICALLY_EQUAL', 'MULTIDISCIPLINARY' => (string)($snapshot['result_text']['multidisciplinary'] ?? ''),
+            'VERY_CLEAR' => (string)($snapshot['result_text']['very_clear'] ?? ''),
+            'FAIRLY_CLEAR', 'SINGLE_DOMINANT' => (string)($snapshot['result_text']['fairly_clear'] ?? ''),
+            default => (string)($snapshot['result_text']['open_profile'] ?? ''),
         };
         $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Indeks kecocokan minat');
         $sectionState = static fn(string $key): string => (string)($presentation['sections'][$key] ?? 'show');
@@ -68,7 +69,7 @@ if ($publicId !== '' && $session === null) {
                     <div class="sie-mask-preview-cards"><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span></div>
                     <div class="sie-mask-preview-bars"><span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span></div>
                 </div>
-                <div class="sie-result-mask-copy"><p class="sie-kicker">HASIL DISAMARKAN</p><?php if ($page): ?><h1><?= study_interest_h($label) ?></h1><?php else: ?><h2><?= study_interest_h($label) ?></h2><?php endif; ?><p><?= study_interest_h($message) ?></p><?php if ($page): ?><a class="sie-button" href="/study-interest/">Kembali <span aria-hidden="true">&rarr;</span></a><?php endif; ?></div>
+                <div class="sie-result-mask-copy"><p class="sie-kicker">MASKED RESULT</p><?php if ($page): ?><h1><?= study_interest_h($label) ?></h1><?php else: ?><h2><?= study_interest_h($label) ?></h2><?php endif; ?><p><?= study_interest_h($message) ?></p><?php if ($page): ?><a class="sie-button" href="/study-interest/">Back <span aria-hidden="true">&rarr;</span></a><?php endif; ?></div>
             </section><?php
         };
         ob_start();
@@ -83,8 +84,8 @@ if ($publicId !== '' && $session === null) {
             <?php else: ?>
             <?php if ($sectionState('hero') === 'show'): ?><section class="sie-result-hero" aria-labelledby="sie-result-title">
                 <div>
-                    <p class="sie-kicker">HASIL EKSPLORASIMU</p>
-                    <h1 id="sie-result-title">Kenali pola minat yang paling menonjol.</h1>
+                     <p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['hero_kicker'] ?? 'YOUR RESULT')) ?></p>
+                     <h1 id="sie-result-title"><?= study_interest_h((string)($snapshot['result_text']['hero_title'] ?? $assessmentTitle)) ?></h1>
                     <p class="sie-result-lead"><?= study_interest_h($clarityText) ?></p>
                 </div>
                 <div class="sie-signal-map" aria-label="Tiga dimensi minat teratas">
@@ -96,8 +97,8 @@ if ($publicId !== '' && $session === null) {
 
             <?php if ($sectionState('directions') === 'show'): ?><section class="sie-result-section" aria-labelledby="sie-directions-title">
                 <div class="sie-section-heading">
-                    <div><p class="sie-kicker">ARAH BERIKUTNYA</p><h2 id="sie-directions-title">Bidang untuk dieksplorasi</h2></div>
-                    <p>Gunakan rekomendasi ini untuk mencari tahu isi studi, aktivitas, dan jalur lanjutannya.</p>
+                     <div><p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['directions_kicker'] ?? 'DIRECTIONS')) ?></p><h2 id="sie-directions-title"><?= study_interest_h((string)($snapshot['result_text']['directions_title'] ?? 'Study directions')) ?></h2></div>
+                     <p><?= study_interest_h((string)($snapshot['result_text']['directions_body'] ?? '')) ?></p>
                 </div>
                 <div class="sie-results-grid">
                     <?php if ($recommendations === []): ?>
@@ -116,13 +117,13 @@ if ($publicId !== '' && $session === null) {
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <p class="sie-score-note"><?= study_interest_h($scoreName) ?> menggambarkan kedekatan pola jawabanmu dengan tiap bidang, bukan peluang diterima atau ukuran kemampuan akademik.</p>
+                 <p class="sie-score-note"><?= study_interest_h($scoreName) ?></p>
             </section><?php elseif ($sectionState('directions') === 'mask'): ?><?php $renderMask('Arah studi terdekat'); ?><?php endif; ?>
 
             <?php if ($sectionState('dimensions') === 'show'): ?><section class="sie-dimensions" aria-labelledby="sie-dimensions-title">
                 <div class="sie-section-heading sie-section-heading-light">
-                    <div><p class="sie-kicker">PETA LENGKAP</p><h2 id="sie-dimensions-title">Delapan dimensi minat</h2></div>
-                    <p>Semakin panjang garisnya, semakin konsisten dimensi itu muncul dalam pilihanmu.</p>
+                     <div><p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['dimensions_kicker'] ?? 'DIMENSIONS')) ?></p><h2 id="sie-dimensions-title"><?= study_interest_h((string)($snapshot['result_text']['dimensions_title'] ?? 'Interest dimensions')) ?></h2></div>
+                     <p><?= study_interest_h((string)($snapshot['result_text']['dimensions_body'] ?? '')) ?></p>
                 </div>
                 <div class="sie-dimension-list">
                     <?php foreach ($dimensions as $index => $dimension): ?>
@@ -136,7 +137,7 @@ if ($publicId !== '' && $session === null) {
             </section><?php elseif ($sectionState('dimensions') === 'mask'): ?><?php $renderMask('Peta dimensi minat'); ?><?php endif; ?>
 
             <?php if ($sectionState('interpretation') === 'show' && $interpretationItems !== []): ?>
-                <section class="sie-insight" aria-labelledby="sie-insight-title"><p class="sie-kicker">BACA POLANYA</p><h2 id="sie-insight-title">Ketika beberapa hasil berdekatan</h2><?php foreach ($interpretationItems as $interpretation): ?><p><?= study_interest_h($interpretation) ?></p><?php endforeach; ?></section>
+                 <section class="sie-insight" aria-labelledby="sie-insight-title"><p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['interpretation_kicker'] ?? 'INTERPRETATION')) ?></p><h2 id="sie-insight-title"><?= study_interest_h((string)($snapshot['result_text']['interpretation_title'] ?? 'Reading the pattern')) ?></h2><?php foreach ($interpretationItems as $interpretation): ?><p><?= study_interest_h($interpretation) ?></p><?php endforeach; ?></section>
             <?php elseif ($sectionState('interpretation') === 'mask'): ?>
                 <?php $renderMask('Interpretasi pola hasil'); ?>
             <?php endif; ?>
@@ -146,9 +147,9 @@ if ($publicId !== '' && $session === null) {
             <?php endforeach; ?><?php elseif ($sectionState('pathways') === 'mask'): ?><?php $renderMask('Jalur profesi'); ?><?php endif; ?>
 
             <?php if ($sectionState('next_steps') === 'show'): ?><section class="sie-next-steps" aria-labelledby="sie-next-steps-title">
-                <div><p class="sie-kicker">JANGAN BERHENTI DI SKOR</p><h2 id="sie-next-steps-title">Ubah hasil ini menjadi percakapan.</h2></div>
-                <p>Cari tahu mata kuliah, jenis aktivitas, dan pengalaman nyata dari bidang yang menarik perhatianmu. Diskusikan hasil ini dengan orang yang memahami perjalanan belajarmu.</p>
-                <a class="sie-button sie-button-light" href="/study-interest/">Mulai eksplorasi baru <span aria-hidden="true">&rarr;</span></a>
+                 <div><p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['next_steps_kicker'] ?? 'NEXT STEPS')) ?></p><h2 id="sie-next-steps-title"><?= study_interest_h((string)($snapshot['result_text']['next_steps_title'] ?? 'Continue exploring')) ?></h2></div>
+                 <p><?= study_interest_h((string)($snapshot['result_text']['next_steps_body'] ?? '')) ?></p>
+                 <a class="sie-button sie-button-light" href="/study-interest/"><?= study_interest_h((string)($snapshot['result_text']['start_over_label'] ?? 'Start again')) ?> <span aria-hidden="true">&rarr;</span></a>
             </section><?php elseif ($sectionState('next_steps') === 'mask'): ?><?php $renderMask('Langkah berikutnya'); ?><?php endif; ?>
             <?php if ($sectionState('disclaimer') === 'show'): ?><p class="sie-disclaimer"><?= study_interest_h($snapshot['result_text']['disclaimer'] ?? '') ?></p><?php elseif ($sectionState('disclaimer') === 'mask'): ?><?php $renderMask('Catatan hasil'); ?><?php endif; ?>
             <?php endif; ?>
@@ -159,7 +160,9 @@ if ($publicId !== '' && $session === null) {
 } elseif ($session !== null) {
     $page_class .= ' sie-assessment-page';
     $configuration = study_interest_configuration_from_session($session);
-    $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Peta Minat Studi')) ?: 'Peta Minat Studi';
+    $page_language = (string)($configuration['locale'] ?? 'en');
+    $publicCopy = is_array($configuration['public_copy'] ?? null) ? $configuration['public_copy'] : [];
+    $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Study Interest Explorer')) ?: 'Study Interest Explorer';
     $page_title = $assessmentTitle;
     $questions = study_interest_public_questions($pdo, (int)$session['version_id']);
     $answers = study_interest_answer_map($pdo, (int)$session['id']);
@@ -182,28 +185,57 @@ if ($publicId !== '' && $session === null) {
         <header class="sie-assessment-header">
             <span class="sie-logo"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></span>
             <div class="sie-progress-wrap">
-                <div><span>Progres eksplorasi</span><strong id="sie-progress-label">Pertanyaan 1 dari <?= count($clientQuestions) ?></strong></div>
+                <div><span><?= study_interest_h((string)($publicCopy['progress_label'] ?? 'Progress')) ?></span><strong id="sie-progress-label">1 / <?= count($clientQuestions) ?></strong></div>
                 <progress id="sie-progress" aria-labelledby="sie-progress-label" max="<?= count($clientQuestions) ?>" value="1"></progress>
             </div>
         </header>
         <section id="sie-question" class="sie-question"></section>
         <footer class="sie-assessment-footer">
-            <button id="sie-back" class="sie-button sie-button-quiet" type="button"><span aria-hidden="true">&larr;</span> Kembali</button>
-            <span id="sie-save-state" class="sie-save-state" role="status" aria-live="polite" data-state="idle"><i aria-hidden="true"></i> Siap</span>
-            <button id="sie-next" class="sie-button" type="button">Lanjut <span aria-hidden="true">&rarr;</span></button>
+            <button id="sie-back" class="sie-button sie-button-quiet" type="button"><span aria-hidden="true">&larr;</span> <?= study_interest_h((string)($publicCopy['back_label'] ?? 'Back')) ?></button>
+            <span id="sie-save-state" class="sie-save-state" role="status" aria-live="polite" data-state="idle"><i aria-hidden="true"></i> <?= study_interest_h((string)($publicCopy['ready_label'] ?? 'Ready')) ?></span>
+            <button id="sie-next" class="sie-button" type="button"><?= study_interest_h((string)($publicCopy['next_label'] ?? 'Next')) ?> <span aria-hidden="true">&rarr;</span></button>
         </footer>
     </main>
     <?php
     $content_html = (string)ob_get_clean();
-    $page_data = ['mode' => 'assessment', 'csrf' => $csrf, 'session' => $publicId, 'questions' => $clientQuestions, 'answers' => $clientAnswers,
+    $page_data = ['mode' => 'assessment', 'csrf' => $csrf, 'session' => $publicId, 'questions' => $clientQuestions, 'answers' => $clientAnswers, 'copy' => $publicCopy,
         'answerUrl' => '/study-interest/api/answer', 'completeUrl' => '/study-interest/api/complete'];
 } else {
     $page_class .= ' sie-landing-page';
     $publishedVersion = study_interest_published_version($pdo);
+    if ($publishedVersion === null) {
+        http_response_code(503);
+        $page_class .= ' sie-state-page';
+        $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">NO LIVE ASSESSMENT</p><h1>An assessment is not available yet.</h1><p>An administrator must review and publish an assessment before participants can begin.</p></main>';
+        require __DIR__ . '/layout.php';
+        return;
+    }
     $publishedConfiguration = is_array($publishedVersion) ? json_decode((string)$publishedVersion['configuration_json'], true) : null;
-    $assessmentTitle = is_array($publishedConfiguration) ? trim((string)($publishedConfiguration['title'] ?? '')) : '';
-    $assessmentDescription = is_array($publishedConfiguration) ? trim((string)($publishedConfiguration['description'] ?? '')) : '';
-    $assessmentTitle = $assessmentTitle !== '' ? $assessmentTitle : 'Peta Minat Studi';
+    $publishedConfiguration = is_array($publishedConfiguration) ? $publishedConfiguration : [];
+    $genericPublished = (int)($publishedConfiguration['schema_version'] ?? 1) >= 2;
+    if (!$genericPublished) {
+        $publishedConfiguration['intake'] = [
+            'heading' => 'Sebelum mulai', 'introduction' => 'Informasi ini membantu pengelola mengenali hasil eksplorasimu.', 'privacy_body' => '', 'privacy_url' => '',
+            'assessment_consent_label' => 'Saya memahami tujuan eksplorasi ini. Hasilnya bukan diagnosis, tes bakat, atau penilaian kemampuan akademik.',
+            'contact_heading' => 'Kontak tindak lanjut', 'contact_introduction' => 'Isi hanya jika kamu bersedia dihubungi terkait hasil ini.', 'contact_consent_label' => 'Saya setuju untuk dihubungi terkait hasil ini.',
+            'fields' => [
+                'name' => ['enabled' => true, 'required' => true, 'label' => 'Nama lengkap', 'placeholder' => 'Nama yang biasa kamu gunakan', 'help' => ''],
+                'school' => ['enabled' => true, 'required' => true, 'label' => 'Sekolah atau institusi', 'placeholder' => 'Nama institusi', 'help' => ''],
+                'class_level' => ['enabled' => true, 'required' => true, 'label' => 'Kelas atau tahap saat ini', 'placeholder' => 'Contoh: Kelas 12', 'help' => ''],
+                'email' => ['enabled' => true, 'required' => false, 'label' => 'Email', 'placeholder' => 'nama@contoh.com', 'help' => ''],
+                'phone' => ['enabled' => true, 'required' => false, 'label' => 'Nomor telepon', 'placeholder' => 'Nomor yang dapat dihubungi', 'help' => ''],
+            ],
+        ];
+    }
+    $page_language = (string)($publishedConfiguration['locale'] ?? ($genericPublished ? 'en' : 'id'));
+    $publicCopy = is_array($publishedConfiguration['public_copy'] ?? null) ? $publishedConfiguration['public_copy'] : [];
+    $intake = is_array($publishedConfiguration['intake'] ?? null) ? $publishedConfiguration['intake'] : [];
+    $intakeFields = study_interest_intake_fields($publishedConfiguration);
+    $identityFields = array_filter($intakeFields, static fn(array $field, string $key): bool => !in_array($key, ['email', 'phone'], true) && !empty($field['enabled']), ARRAY_FILTER_USE_BOTH);
+    $contactFields = array_filter($intakeFields, static fn(array $field, string $key): bool => in_array($key, ['email', 'phone'], true) && !empty($field['enabled']), ARRAY_FILTER_USE_BOTH);
+    $assessmentTitle = trim((string)($publishedConfiguration['title'] ?? ''));
+    $assessmentDescription = trim((string)($publishedConfiguration['description'] ?? ''));
+    $assessmentTitle = $assessmentTitle !== '' ? $assessmentTitle : 'Study Interest Explorer';
     $assessmentDescription = $assessmentDescription !== '' ? $assessmentDescription : 'Temukan pola minat, aktivitas, dan cara belajar yang terasa paling dekat denganmu.';
     $questionCount = is_array($publishedVersion) ? max(0, (int)$publishedVersion['expected_question_count']) : 0;
     $estimatedMinutes = max(3, (int)ceil($questionCount / 4));
@@ -213,44 +245,44 @@ if ($publicId !== '' && $session === null) {
     <main class="sie-landing">
         <header class="sie-site-header">
             <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></a>
-            <span class="sie-time-badge"><?= $questionCount ?> pertanyaan <i></i> sekitar <?= $estimatedMinutes ?> menit</span>
+            <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?> <i></i> <?= study_interest_h((string)($publicCopy['duration_prefix'] ?? 'about')) ?> <?= $estimatedMinutes ?> <?= study_interest_h((string)($publicCopy['duration_suffix'] ?? 'minutes')) ?></span>
         </header>
         <div class="sie-landing-grid">
             <section class="sie-hero" aria-labelledby="sie-landing-title">
-                <p class="sie-kicker">EKSPLORASI, BUKAN UJIAN</p>
+                <p class="sie-kicker"><?= study_interest_h((string)($publicCopy['landing_kicker'] ?? 'EXPLORE YOUR INTERESTS')) ?></p>
                 <h1 id="sie-landing-title"><?= study_interest_h($assessmentTitle) ?></h1>
                 <p class="sie-hero-lead"><?= study_interest_h($assessmentDescription) ?></p>
                 <div class="sie-hero-graphic" aria-hidden="true">
                     <span class="sie-orbit sie-orbit-one"></span><span class="sie-orbit sie-orbit-two"></span><span class="sie-orbit sie-orbit-three"></span>
-                    <strong><?= $questionCount ?></strong><small>pilihan untuk<br>membaca pola</small>
+                     <strong><?= $questionCount ?></strong><small><?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?></small>
                 </div>
-                <ul class="sie-feature-list"><li><b>Tanpa timer</b><span>Jawab dengan ritmemu sendiri.</span></li><li><b>Tersimpan otomatis</b><span>Lanjutkan di browser yang sama.</span></li><li><b>Tidak ada jawaban benar</b><span>Pilih yang paling menggambarkan dirimu.</span></li></ul>
+                <ul class="sie-feature-list"><li><b><?= study_interest_h((string)($publicCopy['feature_one_title'] ?? 'No timer')) ?></b><span><?= study_interest_h((string)($publicCopy['feature_one_body'] ?? 'Answer at your own pace.')) ?></span></li><li><b><?= study_interest_h((string)($publicCopy['feature_two_title'] ?? 'Saved automatically')) ?></b><span><?= study_interest_h((string)($publicCopy['feature_two_body'] ?? 'Continue in the same browser.')) ?></span></li><li><b><?= study_interest_h((string)($publicCopy['feature_three_title'] ?? 'No right answer')) ?></b><span><?= study_interest_h((string)($publicCopy['feature_three_body'] ?? 'Choose what fits you most closely.')) ?></span></li></ul>
             </section>
 
             <form id="sie-start-form" class="sie-start-panel" novalidate>
-                <div class="sie-panel-heading"><span>01</span><div><p class="sie-kicker">SEBELUM MULAI</p><h2>Kenalkan dirimu</h2><p>Informasi ini membantu pengelola mengenali hasil eksplorasimu.</p></div></div>
+                <div class="sie-panel-heading"><span>01</span><div><p class="sie-kicker"><?= study_interest_h((string)($publicCopy['landing_kicker'] ?? 'BEFORE YOU BEGIN')) ?></p><h2><?= study_interest_h((string)($intake['heading'] ?? 'Before you begin')) ?></h2><p><?= study_interest_h((string)($intake['introduction'] ?? '')) ?></p></div></div>
                 <div class="sie-fields">
-                    <label class="sie-field sie-field-wide"><span>Nama lengkap <b>*</b></span><input id="sie-name" type="text" minlength="2" maxlength="120" autocomplete="name" placeholder="Nama yang biasa kamu gunakan" required></label>
-                    <label class="sie-field"><span>Sekolah atau institusi <b>*</b></span><input id="sie-school" type="text" minlength="2" maxlength="191" autocomplete="organization" placeholder="Nama institusi" required></label>
-                    <label class="sie-field"><span>Kelas atau tahap saat ini <b>*</b></span><input id="sie-class" type="text" maxlength="40" placeholder="Contoh: Kelas 12" required></label>
+                    <?php foreach ($identityFields as $key => $field): ?><label class="sie-field<?= $key === 'name' ? ' sie-field-wide' : '' ?>"><span><?= study_interest_h((string)$field['label']) ?><?= !empty($field['required']) ? ' <b>*</b>' : '' ?></span><input data-sie-intake="<?= study_interest_h($key) ?>" type="<?= study_interest_h((string)$field['type']) ?>" maxlength="<?= (int)$field['maximum'] ?>"<?= !empty($field['required']) ? ' required' : '' ?> placeholder="<?= study_interest_h((string)$field['placeholder']) ?>"><?php if ((string)$field['help'] !== ''): ?><small><?= study_interest_h((string)$field['help']) ?></small><?php endif; ?></label><?php endforeach; ?>
                 </div>
+                <?php if ((string)($intake['privacy_body'] ?? '') !== ''): ?><p class="sie-privacy-copy"><?= study_interest_h((string)$intake['privacy_body']) ?><?php if ((string)($intake['privacy_url'] ?? '') !== ''): ?> <a href="<?= study_interest_h((string)$intake['privacy_url']) ?>" target="_blank" rel="noopener noreferrer"><?= study_interest_h(__('Privacy policy')) ?></a><?php endif; ?></p><?php endif; ?>
+                <?php if ($contactFields !== []): ?>
                 <div class="sie-contact-block">
-                    <div class="sie-contact-heading"><div><span>Kontak tindak lanjut</span><small>Opsional</small></div><p>Isi hanya jika kamu bersedia dihubungi terkait hasil ini.</p></div>
+                    <div class="sie-contact-heading"><div><span><?= study_interest_h((string)($intake['contact_heading'] ?? 'Contact')) ?></span></div><p><?= study_interest_h((string)($intake['contact_introduction'] ?? '')) ?></p></div>
                     <div class="sie-fields sie-contact-fields">
-                        <label class="sie-field"><span>Email</span><input id="sie-email" type="email" maxlength="191" autocomplete="email" placeholder="nama@contoh.com"></label>
-                        <label class="sie-field"><span>Nomor telepon</span><input id="sie-phone" type="tel" maxlength="40" autocomplete="tel" placeholder="Nomor yang dapat dihubungi"></label>
+                        <?php foreach ($contactFields as $key => $field): ?><label class="sie-field"><span><?= study_interest_h((string)$field['label']) ?><?= !empty($field['required']) ? ' <b>*</b>' : '' ?></span><input data-sie-intake="<?= study_interest_h($key) ?>" type="<?= study_interest_h((string)$field['type']) ?>" maxlength="<?= (int)$field['maximum'] ?>" autocomplete="<?= $key === 'email' ? 'email' : 'tel' ?>"<?= !empty($field['required']) ? ' required' : '' ?> placeholder="<?= study_interest_h((string)$field['placeholder']) ?>"><?php if ((string)$field['help'] !== ''): ?><small><?= study_interest_h((string)$field['help']) ?></small><?php endif; ?></label><?php endforeach; ?>
                     </div>
-                    <label class="sie-check sie-contact-check"><input id="sie-contact-consent" type="checkbox"><span><b>Saya setuju untuk dihubungi.</b> Kontak opsional di atas boleh digunakan untuk menindaklanjuti hasil ini.</span></label>
+                    <label class="sie-check sie-contact-check"><input id="sie-contact-consent" type="checkbox"><span><?= study_interest_h((string)($intake['contact_consent_label'] ?? 'I agree to be contacted.')) ?></span></label>
                 </div>
-                <label class="sie-check sie-main-consent"><input id="sie-consent" type="checkbox" required><span><b>Saya memahami tujuan eksplorasi ini.</b> Hasilnya bukan diagnosis, tes bakat, atau penilaian kemampuan akademik.</span></label>
-                <div class="sie-start-actions"><button id="sie-start" class="sie-button" type="submit" disabled>Mulai eksplorasi <span aria-hidden="true">&rarr;</span></button><p id="sie-message" role="status" aria-live="polite"></p></div>
-                <noscript><p class="sie-form-error">JavaScript diperlukan untuk memulai dan menyimpan jawaban eksplorasi ini.</p></noscript>
+                <?php endif; ?>
+                <label class="sie-check sie-main-consent"><input id="sie-consent" type="checkbox" required><span><?= study_interest_h((string)($intake['assessment_consent_label'] ?? 'I understand and consent to this assessment.')) ?></span></label>
+                <div class="sie-start-actions"><button id="sie-start" class="sie-button" type="submit" disabled><?= study_interest_h((string)($publicCopy['start_label'] ?? 'Start')) ?> <span aria-hidden="true">&rarr;</span></button><p id="sie-message" role="status" aria-live="polite"></p></div>
+                <noscript><p class="sie-form-error">JavaScript is required to start and save this assessment.</p></noscript>
             </form>
         </div>
     </main>
     <?php
     $content_html = (string)ob_get_clean();
-    $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start',
+    $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start', 'copy' => $publicCopy,
         'versionId' => is_array($publishedVersion) ? (int)$publishedVersion['id'] : 0,
         'configurationHash' => is_array($publishedVersion) ? (string)$publishedVersion['configuration_hash'] : ''];
 }

@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.8.0', 'plugin version is 0.8.0');
+$check(($manifest['version'] ?? null) === '0.9.0', 'plugin version is 0.9.0');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -30,7 +30,8 @@ $check(is_file($migration) && is_file($root . '/migrations/0002-upgrade-foundati
     && is_file($root . '/migrations/0006-seed-result-presentation.php')
     && is_file($root . '/migrations/0007-verify-result-presentation.php')
     && is_file($root . '/migrations/0008-refine-result-masking.php')
-    && is_file($root . '/migrations/0009-enforce-single-live-assessment.php'), 'append-only foundation, workspace, and result-presentation migrations exist');
+    && is_file($root . '/migrations/0009-enforce-single-live-assessment.php')
+    && is_file($root . '/migrations/0010-neutral-result-presentation.php'), 'append-only foundation, workspace, and result-presentation migrations exist');
 $check(!is_file($root . '/schema.sql'), 'request-time schema file was removed');
 $check(str_contains($schema, 'study_interest_test_versions') && str_contains($schema, 'configuration_hash'), 'version table freezes configuration identity');
 $check(str_contains($schema, 'result_snapshot_json'), 'result snapshot field exists');
@@ -79,6 +80,8 @@ $check(($routes['admin/tools/study-interest/result-page']['permission'] ?? null)
     && ($routes['admin/tools/study-interest/result-page/save']['permission'] ?? null) === 'plugin.study-interest.presentation.manage', 'result-page policy separates viewing and management permissions');
 $check(($routes['admin/tools/study-interest/assessments']['permission'] ?? null) === 'plugin.study-interest.config.view'
     && ($routes['admin/tools/study-interest/questions']['permission'] ?? null) === 'plugin.study-interest.config.view', 'hidden scoring routes use configuration-view permission');
+$check(($routes['admin/tools/study-interest/structure']['permission'] ?? null) === 'plugin.study-interest.config.view'
+    && ($routes['admin/tools/study-interest/structure/save']['permission'] ?? null) === 'plugin.study-interest.config.manage', 'generic structure builder uses configuration-management permission');
 $check(($routes['admin/tools/study-interest/assessments/create']['permission'] ?? null) === 'plugin.study-interest.config.manage'
     && ($routes['admin/tools/study-interest/assessments/create-save']['permission'] ?? null) === 'plugin.study-interest.config.manage'
     && ($routes['admin/tools/study-interest/assessments/delete']['permission'] ?? null) === 'plugin.study-interest.config.manage', 'assessment create and delete routes use configuration-management permission');
@@ -93,7 +96,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.8.0'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.0'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -125,7 +128,8 @@ $sessionListSource = (string)file_get_contents($root . '/admin/sessions/index.ph
 $sessionViewSource = (string)file_get_contents($root . '/admin/sessions/view.php');
 $check(str_contains($questionSaveSource, 'study_interest_replace_draft_configuration')
     && str_contains($questionSaveSource, 'authorization_lock_actor_permissions')
-    && str_contains($questionSaveSource, "'draft'"), 'question authoring is transactional and draft-only');
+    && str_contains($questionSaveSource, "'draft'")
+    && str_contains($questionSaveSource, '$scores[$dimensionCode] = $score'), 'question authoring is transactional, draft-only, and preserves explicit zero scores');
 $check(str_contains($questionEditSource, 'data-sie-add-option')
     && str_contains($questionEditSource, 'data-sie-remove-option')
     && str_contains($questionEditSource, "questions/delete"), 'question editor exposes create, update, and delete controls for questions and answers');
@@ -200,21 +204,33 @@ $check(study_interest_configuration_errors($unsupportedConfiguration) !== [], 'u
 $invalidResultText = $configuration;
 $invalidResultText['result_text']['disclaimer'] = '';
 $check(study_interest_configuration_errors($invalidResultText) !== [], 'participant result messages are required configuration');
-$check(count($configuration['questions']) === 45, 'packaged baseline contains 45 questions');
-$check(count($configuration['dimensions']) === 8, 'packaged baseline contains eight dimensions');
+$check(($configuration['schema_version'] ?? null) === 2 && ($configuration['algorithm_version'] ?? null) === 'weighted-choice-2.0', 'packaged starter uses generic schema v2 scoring');
+$check(count($configuration['questions']) === 18, 'packaged neutral starter contains 18 editable questions');
+$check(count($configuration['dimensions']) === 6, 'packaged neutral starter contains six generic dimensions');
 $check(abs(array_sum(array_column($configuration['sections'], 'weight')) - 1.0) < 0.00001, 'section weights total 100%');
 foreach ($configuration['programs'] as $code => $program) $check(abs(array_sum($program['weights']) - 1.0) < 0.00001, "program weights total 100%: {$code}");
+$blankConfiguration = study_interest_blank_configuration();
+$check(study_interest_configuration_draft_errors($blankConfiguration) === []
+    && study_interest_configuration_errors($blankConfiguration) !== [], 'blank assessments are valid drafts but cannot be published before authoring');
 $emptyConfiguration = $configuration;
 $emptyConfiguration['questions'] = [];
 foreach ($emptyConfiguration['sections'] as &$section) $section['question_count'] = 0;
 unset($section);
 $check(study_interest_configuration_errors($emptyConfiguration) !== [], 'zero-question configurations cannot be published');
-$invalidLikertConfiguration = $configuration;
-$invalidLikertConfiguration['questions'][0]['type'] = 'single_choice';
-$invalidLikertConfiguration['questions'][0]['options'][0]['code'] = 'A';
-$check(study_interest_configuration_errors($invalidLikertConfiguration) !== [], 'Section A requires the complete 1-5 Likert contract');
-$check(study_interest_classification(84.995, $configuration) === 'Kuat'
-    && study_interest_classification(54.995, $configuration) === 'Belum Dominan', 'classification has no decimal boundary gaps');
+$unmeasuredConfiguration = $configuration;
+foreach ($unmeasuredConfiguration['questions'] as &$question) foreach ($question['options'] as &$option) if (isset($option['scores']['CON'])) $option['scores']['CON'] = 0;
+unset($question, $option);
+$check(study_interest_configuration_errors($unmeasuredConfiguration) !== [], 'every published dimension must vary in at least one question');
+$check(study_interest_classification(79.995, $configuration) === 'Strong alignment'
+    && study_interest_classification(64.995, $configuration) === 'Clear alignment', 'classification has no decimal boundary gaps');
+$contactConfiguration = $configuration;
+$contactConfiguration['intake']['fields']['school']['enabled'] = false;
+$contact = study_interest_contact_from_input(['name' => 'Ada', 'school' => 'Ignored', 'email' => 'ada@example.com'], $contactConfiguration, true);
+$check($contact === ['name' => 'Ada', 'email' => 'ada@example.com'], 'configured intake stores only enabled participant fields');
+$contactConsentRejected = false;
+try { study_interest_contact_from_input(['name' => 'Ada', 'email' => 'ada@example.com'], $contactConfiguration, false); }
+catch (DomainException) { $contactConsentRejected = true; }
+$check($contactConsentRejected, 'configured contact details still require separate consent');
 $_SERVER['HTTPS'] = '';
 putenv('FORCE_HTTPS=0'); putenv('SESSION_ALLOW_INSECURE_COOKIES=0');
 $secureByDefault = study_interest_cookie_secure();
@@ -223,47 +239,31 @@ $check($secureByDefault && !study_interest_cookie_secure(), 'session bearer cook
 putenv('SESSION_ALLOW_INSECURE_COOKIES'); putenv('FORCE_HTTPS');
 
 $answers = [];
-$highDimensions = ['SCI', 'HHC', 'ANA', 'PRA'];
-foreach ($configuration['questions'] as $question) {
-    if ($question['section'] !== 'A') continue;
-    $high = in_array($question['dimension'], $highDimensions, true);
-    $answers[$question['code']] = (string)($high ? (!empty($question['is_reverse']) ? 1 : 5) : (!empty($question['is_reverse']) ? 5 : 1));
-}
-$answers += [
-    'Q25'=>'A','Q26'=>'A','Q27'=>'A','Q28'=>'B','Q29'=>'C','Q30'=>'A','Q31'=>'A','Q32'=>'A','Q33'=>'A','Q34'=>'B',
-    'Q35'=>'5','Q36'=>'4','Q37'=>'2','Q38'=>'2','Q39'=>'1','Q40'=>'4',
-    'Q41'=>'A','Q42'=>'A','Q43'=>'A','Q44'=>'A','Q45'=>'A',
-];
+$answersByDimension = ['CON' => '5', 'QUA' => '4', 'LAN' => '3', 'CMP' => '2', 'SOC' => '1', 'DES' => '5'];
+foreach ($configuration['questions'] as $question) $answers[$question['code']] = $answersByDimension[(string)$question['dimension']];
 $result = study_interest_score($configuration, $answers, 600);
 $dimensionScores = array_column($result['dimensions'], 'score', 'code');
 $recommendationScores = array_column($result['recommendations'], 'score', 'code');
-$check(abs($dimensionScores['SCI'] - 100.0) < 0.001, 'golden profile computes Scientific Exploration exactly');
-$check(abs($dimensionScores['ANA'] - 76.054) < 0.001 && abs($dimensionScores['PRA'] - 72.815) < 0.001, 'golden profile preserves weighted dimension scores');
-$check(array_keys($recommendationScores) === ['biomedical_science', 'biotechnology'], 'golden profile returns only qualifying direct-entry recommendations');
-$check(abs($recommendationScores['biomedical_science'] - 60.635) < 0.001, 'golden program score is reproducible');
-$check($result['profile_clarity']['code'] === 'MULTIDISCIPLINARY' && abs($result['profile_clarity']['top_gap'] - 4.678) < 0.001, 'golden near-tie profile is multidisciplinary');
-$check(count($result['interpretations']) === 1 && str_contains($result['interpretations'][0], 'Biomedical Science'), 'overlapping leading programs receive a specific interpretation');
+$check(abs($dimensionScores['CON'] - 100.0) < 0.001 && abs($dimensionScores['QUA'] - 75.0) < 0.001
+    && abs($dimensionScores['SOC']) < 0.001, 'generic scoring normalizes configured dimensions exactly');
+$check(array_keys($recommendationScores) === ['physics', 'design', 'computing'], 'generic profile ranks only qualifying primary directions');
+$check(abs($recommendationScores['physics'] - 76.0) < 0.001 && abs($recommendationScores['design'] - 70.0) < 0.001, 'generic direction scores are reproducible');
+$check($result['profile_clarity']['code'] === 'MULTIDISCIPLINARY' && abs($result['profile_clarity']['top_gap'] - 6.0) < 0.001, 'generic near-tie profile is multidisciplinary');
+$check(count($result['interpretations']) === 1 && str_contains($result['interpretations'][0], 'quantitative models'), 'configured direction combinations produce interpretation copy');
 $check($result['professional_pathways'] === [], 'professional pathway is excluded from direct ranking');
 $check($result['flags'] === [], 'carefully answered golden profile has no quality flags');
 $leadingDirections = study_interest_leading_directions($result['programs'], 3);
-$check(count($leadingDirections) === 3 && (string)$leadingDirections[0]['code'] === 'biomedical_science', 'closest study directions are always derived from direct-entry scores');
-
-$reverseAnswers = [];
-foreach ($configuration['questions'] as $question) $reverseAnswers[$question['code']] = (string)$question['options'][0]['code'];
-$reverseAnswers['Q1'] = '5'; $reverseAnswers['Q2'] = '5'; $reverseAnswers['Q3'] = '1';
-$reverseResult = study_interest_score($configuration, $reverseAnswers, 100);
-$science = null;
-foreach ($reverseResult['dimensions'] as $dimension) if ($dimension['code'] === 'SCI') $science = $dimension;
-$check(is_array($science) && abs($science['section_scores']['A'] - 100.0) < 0.001, 'reverse Likert scoring is normalized correctly');
-$flagCodes = array_column($reverseResult['flags'], 'code');
-$check(in_array('STRAIGHTLINING', $flagCodes, true) && in_array('FAST_COMPLETION', $flagCodes, true), 'response-quality analyzer flags straightlining and fast completion');
-$openResult = $reverseResult;
+$check(count($leadingDirections) === 3 && (string)$leadingDirections[0]['code'] === 'physics', 'closest study directions are always derived from primary direction scores');
+$fastResult = study_interest_score($configuration, $answers, 100);
+$check(array_column($fastResult['flags'], 'code') === ['FAST_COMPLETION'], 'generic response-quality analyzer flags fast completion');
+$openResult = $result;
 $openResult['recommendations'] = [];
 $check(study_interest_leading_directions($openResult['programs'], 1) !== [], 'an open profile still has a closest study direction');
 $missingRejected = false;
-try { $incomplete = $answers; unset($incomplete['Q45']); study_interest_score($configuration, $incomplete, 600); }
+try { $incomplete = $answers; unset($incomplete['Q18']); study_interest_score($configuration, $incomplete, 600); }
 catch (DomainException) { $missingRejected = true; }
 $check($missingRejected, 'missing required answers are rejected');
+$check(in_array('baseline-1.0', study_interest_supported_algorithm_versions(), true), 'historical baseline scoring remains registered');
 
 if (study_interest_xlsx_available()) {
     $xlsxPath = tempnam(sys_get_temp_dir(), 'sie-contract-');

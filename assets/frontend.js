@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const data = window.StudyInterestData || {};
+  const copy = data.copy || {};
   const request = async (url, payload) => {
     const response = await fetch(url, {
       method: 'POST',
@@ -8,8 +9,8 @@
       body: JSON.stringify(payload),
       credentials: 'same-origin'
     });
-    const result = await response.json().catch(() => ({ok: false, error: 'Respons server tidak dapat dibaca.'}));
-    if (!response.ok || !result.ok) throw new Error(result.error || 'Permintaan tidak berhasil.');
+    const result = await response.json().catch(() => ({ok: false, error: copy.save_error || 'The server response could not be read.'}));
+    if (!response.ok || !result.ok) throw new Error(result.error || copy.save_error || 'The request was not successful.');
     return result;
   };
 
@@ -18,21 +19,17 @@
     const consent = document.querySelector('#sie-consent');
     const start = document.querySelector('#sie-start');
     const message = document.querySelector('#sie-message');
-    const name = document.querySelector('#sie-name');
-    const school = document.querySelector('#sie-school');
-    const classLevel = document.querySelector('#sie-class');
-    const email = document.querySelector('#sie-email');
-    const phone = document.querySelector('#sie-phone');
+    const fields = Array.from(document.querySelectorAll('[data-sie-intake]'));
     const contactConsent = document.querySelector('#sie-contact-consent');
-    if (!form || !consent || !start || !message || !name || !school || !classLevel || !email || !phone || !contactConsent) return;
+    if (!form || !consent || !start || !message) return;
     let submitting = false;
     const updateStart = () => {
       if (submitting) return;
-      const hasContact = Boolean(email.value.trim() || phone.value.trim());
-      start.disabled = !consent.checked || name.value.trim().length < 2 || school.value.trim().length < 2
-        || !classLevel.value.trim() || !email.validity.valid || (hasContact && !contactConsent.checked);
+      const hasContact = fields.some((field) => ['email', 'phone'].includes(field.dataset.sieIntake) && field.value.trim());
+      start.disabled = !consent.checked || fields.some((field) => !field.validity.valid)
+        || (hasContact && (!contactConsent || !contactConsent.checked));
     };
-    [consent, name, school, classLevel, email, phone, contactConsent].forEach((field) => field.addEventListener('input', updateStart));
+    [consent, ...fields, contactConsent].filter(Boolean).forEach((field) => field.addEventListener('input', updateStart));
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (submitting || start.disabled) return;
@@ -41,17 +38,13 @@
         consent: true,
         version_id: data.versionId,
         configuration_hash: data.configurationHash,
-        name: name.value.trim(),
-        school: school.value.trim(),
-        class_level: classLevel.value.trim(),
-        email: email.value.trim(),
-        phone: phone.value.trim(),
-        contact_consent: contactConsent.checked
+        contact_consent: contactConsent ? contactConsent.checked : false
       };
+      fields.forEach((field) => { payload[field.dataset.sieIntake] = field.value.trim(); });
       submitting = true;
       Array.from(form.elements).forEach((field) => { field.disabled = true; });
       message.dataset.state = 'loading';
-      message.textContent = 'Menyiapkan ruang eksplorasimu...';
+      message.textContent = copy.preparing_label || 'Preparing your assessment...';
       try {
         const result = await request(data.startUrl, payload);
         location.assign('/study-interest/?session=' + encodeURIComponent(result.session.public_id));
@@ -92,8 +85,8 @@
   const render = (focusHeading) => {
     const question = data.questions[index];
     progress.value = index + 1;
-    progressLabel.textContent = 'Pertanyaan ' + (index + 1) + ' dari ' + data.questions.length;
-    next.replaceChildren(document.createTextNode(index === data.questions.length - 1 ? 'Lihat hasil ' : 'Lanjut '));
+    progressLabel.textContent = (index + 1) + ' / ' + data.questions.length;
+    next.replaceChildren(document.createTextNode((index === data.questions.length - 1 ? copy.complete_label || 'View result' : copy.next_label || 'Next') + ' '));
     const arrow = document.createElement('span');
     arrow.setAttribute('aria-hidden', 'true');
     arrow.innerHTML = '&rarr;';
@@ -108,7 +101,7 @@
     const meta = document.createElement('div');
     meta.className = 'sie-question-meta';
     const section = document.createElement('span');
-    section.textContent = 'BAGIAN ' + question.section;
+    section.textContent = question.section;
     const sectionLabel = document.createElement('strong');
     sectionLabel.textContent = question.section_label;
     meta.append(section, sectionLabel);
@@ -145,12 +138,12 @@
         if (saving) return;
         const previous = answers[String(question.id)];
         saving = true;
-        setSaveState('Menyimpan...', 'saving');
+        setSaveState(copy.saving_label || 'Saving...', 'saving');
         renderControls();
         try {
           await request(data.answerUrl, {session: data.session, question_id: question.id, option_id: option.id});
           answers[String(question.id)] = option.id;
-          setSaveState('Tersimpan', 'saved');
+          setSaveState(copy.saved_label || 'Saved', 'saved');
         } catch (error) {
           if (previous === undefined) delete answers[String(question.id)];
           else answers[String(question.id)] = previous;
@@ -178,7 +171,7 @@
     if (saving || !answers[String(data.questions[index].id)]) return;
     if (index < data.questions.length - 1) { moveTo(index + 1); return; }
     saving = true;
-    setSaveState('Menyusun hasil...', 'saving');
+    setSaveState(copy.preparing_label || 'Preparing your result...', 'saving');
     renderControls();
     try {
       const result = await request(data.completeUrl, {session: data.session});

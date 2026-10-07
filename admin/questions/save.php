@@ -22,6 +22,7 @@ try {
     $configuration = json_decode((string)$version['configuration_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($configuration)) throw new DomainException('Stored configuration is invalid.');
     if (!hash_equals((string)$version['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) throw new RuntimeException('Assessment configuration integrity check failed.');
+    $legacyAlgorithm = (string)($configuration['algorithm_version'] ?? '') === 'baseline-1.0';
 
     $code = strtoupper(trim((string)($_POST['question_code'] ?? '')));
     $section = trim((string)($_POST['section'] ?? ''));
@@ -33,8 +34,8 @@ try {
     if (!isset($configuration['sections'][$section])) throw new DomainException('Select a valid section.');
     if (!in_array($type, ['likert', 'single_choice'], true)) throw new DomainException('Select a valid question type.');
     if ($prompt === '') throw new DomainException('Question prompt is required.');
-    if ($section === 'A' && !isset($configuration['dimensions'][$dimension])) throw new DomainException('Section A questions require a primary dimension.');
-    if ($section === 'A' && $type !== 'likert') throw new DomainException('Section A questions must use the 1-5 Likert type.');
+    if ($legacyAlgorithm && $section === 'A' && !isset($configuration['dimensions'][$dimension])) throw new DomainException('Section A questions require a primary dimension.');
+    if ($legacyAlgorithm && $section === 'A' && $type !== 'likert') throw new DomainException('Section A questions must use the 1-5 Likert type.');
     if ($dimension !== '' && !isset($configuration['dimensions'][$dimension])) throw new DomainException('Primary dimension is invalid.');
 
     $existingQuestion = null;
@@ -51,23 +52,22 @@ try {
         if (preg_match('/\A[A-Z0-9][A-Z0-9_-]{0,39}\z/', $optionCode) !== 1 || $label === '') throw new DomainException('Every answer option requires a valid code and label.');
         if (isset($options[$optionCode])) throw new DomainException('Answer option codes must be unique.');
         $existingOption = is_array($existingOptions[$optionCode] ?? null) ? $existingOptions[$optionCode] : (is_array($existingOptionList[$optionIndex] ?? null) ? $existingOptionList[$optionIndex] : []);
-        $existingScores = is_array($existingOption['scores'] ?? null) ? $existingOption['scores'] : [];
         $scores = [];
         $rawScores = is_array($rawOption['scores'] ?? null) ? $rawOption['scores'] : [];
         foreach ($configuration['dimensions'] as $dimensionCode => $_meta) {
             $value = $rawScores[$dimensionCode] ?? null;
             if (!is_scalar($value) || !is_numeric((string)$value) || !is_finite((float)$value) || (float)$value < -1000 || (float)$value > 1000) throw new DomainException('Every dimension score must be a number between -1000 and 1000.');
             $score = round((float)$value, 4);
-            if ($score !== 0.0 || array_key_exists($dimensionCode, $existingScores)) $scores[$dimensionCode] = $score;
+            $scores[$dimensionCode] = $score;
         }
-        if ($scores === []) throw new DomainException('Every answer option must score at least one dimension.');
+        if ($legacyAlgorithm && $scores === []) throw new DomainException('Every answer option must score at least one dimension.');
         $options[$optionCode] = $existingOption + ['code' => $optionCode];
         $options[$optionCode]['code'] = $optionCode;
         $options[$optionCode]['label'] = $label;
         $options[$optionCode]['scores'] = $scores;
     }
     if (count($options) < 2) throw new DomainException('At least two answer options are required.');
-    if ($section === 'A') {
+    if ($legacyAlgorithm && $section === 'A') {
         $likertCodes = array_map('strval', array_keys($options));
         sort($likertCodes, SORT_STRING);
         if ($likertCodes !== ['1', '2', '3', '4', '5']) throw new DomainException('Section A questions must use the complete 1-5 Likert scale.');

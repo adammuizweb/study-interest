@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "title": "Study Interest Explorer",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
   "author": "Adam Muiz",
@@ -182,6 +182,22 @@
         "route": "admin/tools/study-interest/assessments/delete",
         "file": "admin/assessments/delete.php",
         "title": "Delete Study Interest Assessment",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.config.manage",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/structure",
+        "file": "admin/structure.php",
+        "title": "Study Interest Structure",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.config.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/structure/save",
+        "file": "admin/structure/save.php",
+        "title": "Save Study Interest Structure",
         "roles": ["admin"],
         "permission": "plugin.study-interest.config.manage",
         "hidden": true
