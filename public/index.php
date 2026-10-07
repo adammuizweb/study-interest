@@ -74,7 +74,13 @@ if ($publicId !== '' && $session === null) {
     $content_html = '<main class="sie-shell"><p class="sie-eyebrow">EXPLORATION TOOL</p><h1>Find the fields that feel like you.</h1>'
         . '<p class="sie-lead">Explore your study interests and get a thoughtful starting point for discussion. There are no right or wrong answers, no timer, and no proctoring.</p>'
         . '<div class="sie-card"><h2>Before you begin</h2><p>Set aside around 10 to 15 minutes. Your answers are saved automatically in this browser.</p>'
+        . '<div class="sie-fields"><label>Full name<input id="sie-name" type="text" minlength="2" maxlength="120" autocomplete="name" required></label>'
+        . '<label>School or organization<input id="sie-school" type="text" minlength="2" maxlength="191" autocomplete="organization" required></label>'
+        . '<label>Class or current level<input id="sie-class" type="text" maxlength="40" placeholder="Example: Grade 12" required></label>'
+        . '<label>Email (optional)<input id="sie-email" type="email" maxlength="191" autocomplete="email"></label>'
+        . '<label>Phone or WhatsApp (optional)<input id="sie-phone" type="tel" maxlength="40" autocomplete="tel"></label></div>'
         . '<label class="sie-consent"><input id="sie-consent" type="checkbox"> I understand that this is an exploration tool, not a diagnosis, aptitude test, or assessment of academic ability.</label>'
+        . '<label class="sie-consent"><input id="sie-contact-consent" type="checkbox"> I agree that the optional contact details above may be used to follow up about this result.</label>'
         . '<button id="sie-start" class="sie-button" type="button" disabled>Start exploration</button><p id="sie-message" role="status"></p></div></main>';
     $page_data = ['mode' => 'landing', 'csrf' => $csrf, 'startUrl' => '/study-interest/api/start'];
 }

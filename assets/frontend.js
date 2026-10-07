@@ -17,13 +17,32 @@
     const consent = document.querySelector('#sie-consent');
     const start = document.querySelector('#sie-start');
     const message = document.querySelector('#sie-message');
-    if (!consent || !start || !message) return;
-    consent.addEventListener('change', () => { start.disabled = !consent.checked; });
+    const name = document.querySelector('#sie-name');
+    const school = document.querySelector('#sie-school');
+    const classLevel = document.querySelector('#sie-class');
+    const email = document.querySelector('#sie-email');
+    const phone = document.querySelector('#sie-phone');
+    const contactConsent = document.querySelector('#sie-contact-consent');
+    if (!consent || !start || !message || !name || !school || !classLevel || !email || !phone || !contactConsent) return;
+    const updateStart = () => {
+      const hasContact = Boolean(email.value.trim() || phone.value.trim());
+      start.disabled = !consent.checked || name.value.trim().length < 2 || school.value.trim().length < 2
+        || !classLevel.value.trim() || (hasContact && !contactConsent.checked);
+    };
+    [consent, name, school, classLevel, email, phone, contactConsent].forEach((field) => field.addEventListener('input', updateStart));
     start.addEventListener('click', async () => {
       start.disabled = true;
       message.textContent = 'Preparing your exploration...';
       try {
-        const result = await request(data.startUrl, {consent: true});
+        const result = await request(data.startUrl, {
+          consent: true,
+          name: name.value.trim(),
+          school: school.value.trim(),
+          class_level: classLevel.value.trim(),
+          email: email.value.trim(),
+          phone: phone.value.trim(),
+          contact_consent: contactConsent.checked
+        });
         location.assign('/study-interest/?session=' + encodeURIComponent(result.session.public_id));
       } catch (error) {
         message.textContent = error.message;

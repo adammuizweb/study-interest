@@ -9,10 +9,12 @@ contract and does not reuse Quiz attempt tables or internal request handlers.
 
 ## Current status
 
-Version `0.2.0` provides append-only migrations, a packaged 45-question draft,
+Version `0.2.1` provides append-only migrations, a packaged 45-question draft,
 publication validation, immutable configuration snapshots, consent, private
 browser sessions, autosave/resume, server-side scoring, recommendations,
 response-quality flags, normalized result storage, and participant results.
+The public start flow collects bounded minimal identity fields and keeps optional
+contact details behind a separate contact-consent choice.
 The dashboard includes aggregate result analytics and an authorized, audited
 CSV export that excludes contact data.
 

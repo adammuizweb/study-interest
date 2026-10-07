@@ -13,7 +13,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.2.0', 'plugin version is 0.2.0');
+$check(($manifest['version'] ?? null) === '0.2.1', 'plugin version is 0.2.1');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins']['quiz'] ?? null) === '>=1.4.13', 'Quiz extension API dependency is explicit and versioned');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -69,6 +69,9 @@ $check(!str_contains($publicQuestionSource, 'option_scores s ON'), 'public quest
 $frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
 $check(str_contains($frontendSource, 'firstUnanswered < 0 ? data.questions.length - 1')
     && str_contains($frontendSource, 'else answers[String(question.id)] = previous;'), 'frontend resumes at the final answered question and reverts failed autosaves');
+$startSource = (string)file_get_contents($root . '/public/api/start.php');
+$check(str_contains($startSource, "'class_level' => \$classLevel") && str_contains($startSource, 'contact_consent_at_utc')
+    && str_contains($startSource, 'Contact consent is required'), 'minimal identity and optional contact consent are validated and stored separately');
 
 $configuration = study_interest_baseline_configuration();
 $check(study_interest_configuration_errors($configuration) === [], 'packaged baseline passes full configuration validation');
