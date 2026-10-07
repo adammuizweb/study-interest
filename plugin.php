@@ -11,6 +11,11 @@ function study_interest_quiz_dependency_ready(): bool
         && version_compare(quiz_extension_api_version(), '1.0.0', '>=');
 }
 
+if (!study_interest_quiz_dependency_ready()) {
+    error_log('[study-interest] Quiz extension API is unavailable.');
+    return;
+}
+
 function study_interest_schema_is_ready(PDO $pdo): bool
 {
     $manifest = function_exists('plugin_manifest') ? plugin_manifest('study-interest') : null;
