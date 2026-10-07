@@ -1,0 +1,56 @@
+{
+  "name": "study-interest",
+  "version": "0.1.0",
+  "title": "Study Interest Explorer",
+  "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
+  "author": "Adam Muiz",
+  "author_uri": "https://adammuiz.com",
+  "plugin_uri": "https://github.com/adammuizweb/study-interest",
+  "homepage": "https://github.com/adammuizweb/study-interest",
+  "github_url": "https://github.com/adammuizweb/study-interest",
+  "license": "MIT",
+  "requires": {
+    "jyavani": ">=2.3.74",
+    "php": ">=8.3",
+    "extensions": ["pdo", "json", "mbstring"],
+    "plugins": {
+      "quiz": ">=1.4.12"
+    }
+  },
+  "permissions": [
+    {
+      "key": "plugin.study-interest.dashboard.access",
+      "label": "Access Study Interest Dashboard",
+      "supports_scope": false,
+      "default_roles": ["admin", "editor"],
+      "delegable": true
+    },
+    {
+      "key": "plugin.study-interest.config.manage",
+      "label": "Manage Study Interest Configuration",
+      "supports_scope": false,
+      "default_roles": ["admin"],
+      "delegable": false
+    }
+  ],
+  "admin": {
+    "pages": [
+      {
+        "route": "admin/tools/study-interest",
+        "file": "admin/index.php",
+        "title": "Study Interest",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.dashboard.access"
+      }
+    ],
+    "nav": [
+      {
+        "label": "Study Interest",
+        "icon": "compass",
+        "page": "admin/tools/study-interest",
+        "parent": "pages",
+        "roles": ["admin", "editor"]
+      }
+    ]
+  }
+}
