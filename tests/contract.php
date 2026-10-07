@@ -14,13 +14,13 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.1', 'plugin version is 0.9.1');
+$check(($manifest['version'] ?? null) === '0.9.2', 'plugin version is 0.9.2');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
 $check(($manifest['plugin_uri'] ?? null) === 'https://jyavani.com/plugin/study-interest/'
     && ($manifest['store'] ?? null) === ['url' => 'https://jyavani.com/plugin-store', 'slug' => 'study-interest'], 'manifest declares canonical Store identity and detail URL');
-$check(($manifest['icon'] ?? null) === 'assets/icon-sidebar.svg' && is_file($root . '/assets/icon-sidebar.svg'), 'package declares a bundled Store icon');
+$check(($manifest['icon'] ?? null) === 'icon.svg' && is_file($root . '/icon.svg'), 'package declares a root-level bundled Store icon');
 $check(in_array('pdo_mysql', $manifest['requires']['extensions'] ?? [], true), 'MySQL PDO requirement is explicit');
 $check(in_array('zip', $manifest['requires']['extensions'] ?? [], true), 'ZIP requirement supports native Excel exports');
 
@@ -99,7 +99,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.1'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.2'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
