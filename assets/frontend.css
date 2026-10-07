@@ -243,7 +243,7 @@ a { color: inherit; }
   .sie-assessment-header .sie-logo { font-size: .78rem; }
   .sie-assessment-header .sie-logo-mark { width: 24px; height: 24px; flex-basis: 24px; border-radius: 7px; }
   .sie-progress-wrap > div { margin-bottom: 5px; }
-  .sie-question { padding: 24px 18px calc(120px + env(safe-area-inset-bottom)); }
+  .sie-question { padding: 24px 18px calc(180px + env(safe-area-inset-bottom)); }
   .sie-question-meta { align-items: center; gap: 9px; margin-bottom: 12px; }
   .sie-question h1 { font-size: clamp(1.55rem, 7vw, 2rem); line-height: 1.1; }
   .sie-question h1::after { width: 48px; height: 6px; margin-top: 20px; }
