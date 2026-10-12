@@ -43,6 +43,44 @@
     });
   });
 
+  const branding = root.querySelector('[data-sie-branding]');
+  if (branding) {
+    const input = branding.querySelector('[data-sie-branding-url]');
+    const titleInput = branding.querySelector('[data-sie-branding-title]');
+    const preview = branding.querySelector('[data-sie-branding-preview]');
+    const image = preview?.querySelector('img');
+    const mark = preview?.querySelector('.sie-branding-default-mark');
+    const title = preview?.querySelector('strong');
+    const updatePreview = () => {
+      const url = input?.value.trim() || '';
+      if (image && url) { image.src = url; image.hidden = false; }
+      if (image && !url) { image.removeAttribute('src'); image.hidden = true; }
+      if (mark) mark.hidden = url !== '';
+      if (title) title.textContent = titleInput?.value.trim() || preview?.dataset.sieBrandingFallbackTitle || '';
+    };
+    branding.querySelector('[data-sie-branding-clear]')?.addEventListener('click', () => {
+      if (!input) return;
+      input.value = '';
+      updatePreview();
+      input.focus();
+    });
+    branding.querySelector('[data-sie-branding-choose]')?.addEventListener('click', async () => {
+      if (!input || typeof window.openMediaSelector !== 'function') return;
+      const detail = await window.openMediaSelector({
+        url: (window.ADMIN_PATH || '/adiwira') + '/admin/modal_img/list_modal.php?embedded=1&visibility=public',
+        context: {surface: 'plugin.study-interest.branding', consumer: 'study-interest', field: 'logo_image_url', selection_mode: 'review'}
+      });
+      const media = typeof window.normalizeMedia === 'function' ? window.normalizeMedia(detail) : null;
+      if (!media?.url) return;
+      input.value = media.url;
+      updatePreview();
+    });
+    input?.addEventListener('input', updatePreview);
+    titleInput?.addEventListener('input', updatePreview);
+    image?.addEventListener('error', () => { image.hidden = true; if (mark) mark.hidden = false; });
+    updatePreview();
+  }
+
   const optionEditor = root.querySelector('[data-sie-option-editor]');
   const optionTemplate = root.querySelector('[data-sie-option-template]');
   const optionCount = root.querySelector('[data-sie-option-count]');

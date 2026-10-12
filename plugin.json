@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "title": "Study Interest Explorer",
   "icon": "icon.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
@@ -58,14 +58,14 @@
     },
     {
       "key": "plugin.study-interest.presentation.view",
-      "label": "View Study Interest Result Page Policy",
+      "label": "View Study Interest Public Presentation",
       "supports_scope": false,
       "default_roles": ["admin", "editor"],
       "delegable": true
     },
     {
       "key": "plugin.study-interest.presentation.manage",
-      "label": "Manage Study Interest Result Page Policy",
+      "label": "Manage Study Interest Public Presentation",
       "supports_scope": false,
       "default_roles": ["admin"],
       "delegable": false
@@ -317,6 +317,22 @@
         "title": "Study Interest Activity Log",
         "roles": ["admin"],
         "permission": "plugin.study-interest.audit.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/branding",
+        "file": "admin/branding.php",
+        "title": "Study Interest Branding",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.presentation.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/branding/save",
+        "file": "admin/branding/save.php",
+        "title": "Save Study Interest Branding",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.presentation.manage",
         "hidden": true
       },
       {

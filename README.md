@@ -9,12 +9,13 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.3` provides a generic schema-v2 assessment builder with a neutral
+Version `0.9.4` provides a generic schema-v2 assessment builder with a neutral
 18-question English starter and a blank starting point. Dashboard authors can
 create and remove sections, dimensions, and study directions; edit questions,
 answer scoring, direction weights, thresholds, classifications, interpretation
-rules, participant intake fields, consent and privacy copy, and all primary
-public/result labels without editing PHP. The starter is illustrative and is not
+rules, participant intake fields, consent and privacy copy, all primary
+public/result labels, and global public header branding without editing PHP or
+changing immutable assessment versions. The starter is illustrative and is not
 presented as a validated psychometric instrument.
 
 The plugin also provides append-only migrations, publication validation,

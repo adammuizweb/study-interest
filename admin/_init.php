@@ -45,6 +45,7 @@ function study_interest_admin_nav(string $active): void
         ['questions', 'questions', __('Question bank'), 'plugin.study-interest.config.view'],
         ['participants', 'participants', __('Participants'), 'plugin.study-interest.contacts.view'],
         ['sessions', 'sessions', __('Sessions'), 'plugin.study-interest.sessions.view'],
+        ['branding', 'branding', __('Branding'), 'plugin.study-interest.presentation.view'],
         ['result-page', 'result-page', __('Result page'), 'plugin.study-interest.presentation.view'],
         ['analytics', 'results', __('Analytics'), 'plugin.study-interest.results.view'],
         ['audit', 'audit', __('Activity log'), 'plugin.study-interest.audit.view'],

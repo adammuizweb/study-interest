@@ -20,6 +20,16 @@ if (!function_exists('stateless_csrf_token')) {
 $csrf = stateless_csrf_token();
 $publicId = trim((string)($_GET['session'] ?? ''));
 $session = $publicId !== '' ? study_interest_session($pdo, $publicId) : null;
+$publicBranding = study_interest_public_branding($pdo);
+$renderPublicBrand = static function (string $fallbackTitle) use ($publicBranding): void {
+    $title = (string)$publicBranding['brand_title'] !== '' ? (string)$publicBranding['brand_title'] : $fallbackTitle;
+    if ((string)$publicBranding['logo_image_url'] !== '') {
+        ?><img class="sie-logo-image" src="<?= study_interest_h((string)$publicBranding['logo_image_url']) ?>" alt="" aria-hidden="true" decoding="async"><?php
+    } else {
+        ?><span class="sie-logo-mark" aria-hidden="true"></span><?php
+    }
+    ?><span><?= study_interest_h($title) ?></span><?php
+};
 
 if ($publicId !== '' && $session === null) {
     http_response_code(404);
@@ -77,7 +87,7 @@ if ($publicId !== '' && $session === null) {
         ?>
         <main class="sie-results">
             <header class="sie-site-header sie-results-header">
-                <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></a>
+                <a class="sie-logo" href="/study-interest/"><?php $renderPublicBrand($assessmentTitle); ?></a>
                 <span class="sie-private-badge"><span aria-hidden="true"></span> Hasil privat</span>
             </header>
             <?php if ((string)$presentation['mode'] === 'masked'): ?>
@@ -194,7 +204,7 @@ if ($publicId !== '' && $session === null) {
     ?>
     <main class="sie-assessment">
         <header class="sie-assessment-header">
-            <span class="sie-logo"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></span>
+            <span class="sie-logo"><?php $renderPublicBrand($assessmentTitle); ?></span>
             <div class="sie-progress-wrap">
                 <div><span><?= study_interest_h((string)($publicCopy['progress_label'] ?? 'Progress')) ?></span><strong id="sie-progress-label"><?= study_interest_h($progressText) ?></strong></div>
                 <progress id="sie-progress" aria-labelledby="sie-progress-label" max="<?= count($clientQuestions) ?>" value="1"></progress>
@@ -265,7 +275,7 @@ if ($publicId !== '' && $session === null) {
     ?>
     <main class="sie-landing">
         <header class="sie-site-header">
-            <a class="sie-logo" href="/study-interest/"><span class="sie-logo-mark" aria-hidden="true"></span><span><?= study_interest_h($assessmentTitle) ?></span></a>
+            <a class="sie-logo" href="/study-interest/"><?php $renderPublicBrand($assessmentTitle); ?></a>
             <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?> <i></i> <?= study_interest_h((string)($publicCopy['duration_prefix'] ?? 'about')) ?> <?= $estimatedMinutes ?> <?= study_interest_h((string)($publicCopy['duration_suffix'] ?? 'minutes')) ?></span>
         </header>
         <div class="sie-landing-grid">

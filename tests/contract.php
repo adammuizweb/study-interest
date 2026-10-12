@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.3', 'plugin version is 0.9.3');
+$check(($manifest['version'] ?? null) === '0.9.4', 'plugin version is 0.9.4');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -34,7 +34,9 @@ $check(is_file($migration) && is_file($root . '/migrations/0002-upgrade-foundati
     && is_file($root . '/migrations/0007-verify-result-presentation.php')
     && is_file($root . '/migrations/0008-refine-result-masking.php')
     && is_file($root . '/migrations/0009-enforce-single-live-assessment.php')
-    && is_file($root . '/migrations/0010-neutral-result-presentation.php'), 'append-only foundation, workspace, and result-presentation migrations exist');
+    && is_file($root . '/migrations/0010-neutral-result-presentation.php')
+    && is_file($root . '/migrations/0011-seed-public-branding.php')
+    && is_file($root . '/migrations/0012-verify-public-branding.php'), 'append-only foundation, workspace, result-presentation, and branding migrations exist');
 $check(!is_file($root . '/schema.sql'), 'request-time schema file was removed');
 $check(str_contains($schema, 'study_interest_test_versions') && str_contains($schema, 'configuration_hash'), 'version table freezes configuration identity');
 $check(str_contains($schema, 'result_snapshot_json'), 'result snapshot field exists');
@@ -81,6 +83,8 @@ $check(($routes['admin/tools/study-interest/sessions/delete']['permission'] ?? n
 $check(($routes['admin/tools/study-interest/workspace-export']['permission'] ?? null) === 'plugin.study-interest.workspace.export', 'operational exports use dedicated permission');
 $check(($routes['admin/tools/study-interest/result-page']['permission'] ?? null) === 'plugin.study-interest.presentation.view'
     && ($routes['admin/tools/study-interest/result-page/save']['permission'] ?? null) === 'plugin.study-interest.presentation.manage', 'result-page policy separates viewing and management permissions');
+$check(($routes['admin/tools/study-interest/branding']['permission'] ?? null) === 'plugin.study-interest.presentation.view'
+    && ($routes['admin/tools/study-interest/branding/save']['permission'] ?? null) === 'plugin.study-interest.presentation.manage', 'global branding reuses public-presentation permissions');
 $check(($routes['admin/tools/study-interest/assessments']['permission'] ?? null) === 'plugin.study-interest.config.view'
     && ($routes['admin/tools/study-interest/questions']['permission'] ?? null) === 'plugin.study-interest.config.view', 'hidden scoring routes use configuration-view permission');
 $check(($routes['admin/tools/study-interest/structure']['permission'] ?? null) === 'plugin.study-interest.config.view'
@@ -99,7 +103,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.3'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.4'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -152,9 +156,11 @@ $check(str_contains($correctionSource, 'study_interest_result_revisions')
 $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
     && str_contains($sessionViewSource, 'plugin.study-interest.contacts.view'), 'session detail separates response and contact access');
 $presentationSaveSource = (string)file_get_contents($root . '/admin/result-page/save.php');
+$brandingSaveSource = (string)file_get_contents($root . '/admin/branding/save.php');
 $publicResultSource = (string)file_get_contents($root . '/public/index.php');
 $publicResultStyles = (string)file_get_contents($root . '/assets/frontend.css');
 $frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
+$adminSource = (string)file_get_contents($root . '/assets/admin.js');
 $check(str_contains($presentationSaveSource, 'csrf_check')
     && str_contains($presentationSaveSource, 'authorization_lock_actor_permissions')
     && str_contains($presentationSaveSource, 'expected_hash')
@@ -169,6 +175,19 @@ $check(str_contains($publicResultSource, 'direct_recommendation_limit')
     && str_contains($publicResultSource, "elseif (\$sectionState('interpretation') === 'mask')"), 'public result respects the immutable direction limit and masks optional sections without existence disclosure');
 $check(str_contains($publicResultSource, '$assessmentTitle')
     && str_contains($publicResultSource, '$assessmentDescription'), 'public assessment identity comes from dashboard-managed configuration');
+$check(substr_count($publicResultSource, '$renderPublicBrand($assessmentTitle)') === 3
+    && str_contains($publicResultSource, 'study_interest_public_branding($pdo)')
+    && str_contains($publicResultStyles, '.sie-logo-image'), 'global branding renders in every public assessment header without replacing assessment identity');
+$check(str_contains($brandingSaveSource, 'csrf_check')
+    && str_contains($brandingSaveSource, 'authorization_lock_actor_permissions')
+    && str_contains($brandingSaveSource, 'FOR UPDATE')
+    && str_contains($brandingSaveSource, 'expected_hash')
+    && str_contains($brandingSaveSource, 'settings_set')
+    && str_contains($brandingSaveSource, 'public_branding.updated')
+    && !str_contains($brandingSaveSource, 'study_interest_test_versions'), 'branding updates are optimistic, authorized, audited, and separate from immutable versions');
+$check(str_contains($adminSource, 'window.openMediaSelector')
+    && str_contains($adminSource, 'visibility=public')
+    && str_contains($pluginSource, '/static/js/add/media-selector.js'), 'branding can select a public image through the scoped Core Media Library contract');
 $check(str_contains($publicResultSource, "'EKSPLORASI, BUKAN UJIAN'")
     && str_contains($publicResultSource, "'Pertanyaan'")
     && str_contains($publicResultSource, "'HASIL EKSPLORASIMU'")
@@ -203,6 +222,20 @@ $invalidPresentation = study_interest_result_presentation_defaults();
 $invalidPresentation['mode'] = 'unexpected';
 $check(!study_interest_result_presentation_is_valid($invalidPresentation)
     && study_interest_result_presentation_fail_closed()['mode'] === 'hidden', 'invalid persisted result-page policy fails closed');
+$branding = study_interest_public_branding_normalize(['brand_title' => 'Learning Compass', 'logo_image_url' => '/static/img/brand.webp']);
+$check($branding === ['schema' => 1, 'brand_title' => 'Learning Compass', 'logo_image_url' => '/static/img/brand.webp']
+    && study_interest_public_branding_hash($branding) === study_interest_public_branding_hash($branding), 'public branding normalizes with a deterministic optimistic-lock fingerprint');
+$check(study_interest_public_branding_url_error('') === null
+    && study_interest_public_branding_url_error('/static/img/brand.webp?v=2') === null
+    && study_interest_public_branding_url_error('https://cdn.example.test/brand.svg') === null, 'public branding accepts empty, public root-relative, and HTTPS logo URLs');
+$invalidBrandUrls = ['http://example.test/logo.png', '//example.test/logo.png', 'data:image/svg+xml,x', 'https://user:pass@example.test/logo.png', 'https://example.test/logo.png#x', '/private', '/private/logo.png', '/static/../private/logo.png', '/static/%2e%2e/private/logo.png', '/static\\logo.png'];
+$check(array_filter($invalidBrandUrls, static fn(string $url): bool => study_interest_public_branding_url_error($url) === null) === [], 'public branding rejects unsafe logo URL forms');
+$invalidBranding = study_interest_public_branding_defaults();
+$invalidBranding['brand_title'] = str_repeat('x', 121);
+$check(!study_interest_public_branding_is_valid($invalidBranding)
+    && study_interest_public_branding_normalize($invalidBranding) === study_interest_public_branding_defaults(), 'invalid public branding fails safely to defaults');
+$invalidBranding['brand_title'] = "Two\nlines";
+$check(!study_interest_public_branding_is_valid($invalidBranding), 'public brand title is bounded single-line text');
 
 $configuration = study_interest_baseline_configuration();
 $check(study_interest_configuration_errors($configuration) === [], 'packaged baseline passes full configuration validation');

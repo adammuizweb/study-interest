@@ -363,6 +363,17 @@
 .sie-audit-json { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .6rem; }
 .sie-audit-json pre { max-height: 260px; margin: .3rem 0 0; padding: .6rem; overflow: auto; border-radius: 8px; background: var(--sie-surface); color: var(--sie-text); font-size: .68rem; white-space: pre-wrap; }
 
+.sie-branding-layout { display: grid; grid-template-columns: minmax(240px, .42fr) minmax(0, 1fr); gap: 1.2rem; align-items: stretch; }
+.sie-branding-preview { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: .8rem; padding: 1.5rem; overflow: hidden; border-radius: 16px; background: var(--sie-navy); color: #fff; text-align: center; }
+.sie-branding-preview img { display: block; width: auto; height: 52px; max-width: min(240px, 70%); object-fit: contain; }
+.sie-branding-preview strong { max-width: 180px; overflow-wrap: anywhere; font-size: .92rem; }
+.sie-branding-default-mark { position: relative; width: 44px; height: 44px; flex: 0 0 44px; overflow: hidden; border-radius: 12px; background: #fff; }
+.sie-branding-default-mark::before { content: ""; position: absolute; width: 28px; height: 7px; left: 11px; top: 9px; transform: rotate(-35deg); border-radius: 99px; background: var(--sie-lime); box-shadow: -8px 12px 0 var(--sie-coral), 8px 23px 0 var(--sie-violet); }
+.sie-branding-fields { display: grid; align-content: start; gap: .9rem; }
+.sie-branding-fields label { display: grid; gap: .35rem; }
+.sie-branding-fields label > span { font-size: .72rem; font-weight: 800; }
+.sie-branding-actions { display: flex; flex-wrap: wrap; gap: .55rem; }
+
 @media (max-width: 980px) {
   .sie-admin-overview, .sie-analytics-grid { grid-template-columns: 1fr; }
   .sie-admin-summary, .sie-metric-grid { grid-template-columns: repeat(2, 1fr); }
@@ -409,6 +420,8 @@
   .sie-sticky-save { align-items: stretch; flex-direction: column; }
   .sie-sticky-save .adam-button { width: 100%; }
   .sie-audit-json { grid-template-columns: 1fr; }
+  .sie-branding-layout { grid-template-columns: 1fr; }
+  .sie-branding-actions .adam-button { flex: 1; }
   .sie-admin-table { overflow: visible; border: 0; background: transparent; }
   .sie-admin-table thead { display: none; }
   .sie-admin-table table, .sie-admin-table tbody, .sie-admin-table tr, .sie-admin-table td { display: block; width: 100%; }

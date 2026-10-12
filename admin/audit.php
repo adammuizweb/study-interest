@@ -23,9 +23,9 @@ $actionLabels = [
     'question.created' => __('Question created'), 'question.updated' => __('Question updated'), 'question.deleted' => __('Question deleted'),
     'participant.updated' => __('Participant updated'), 'session.deleted' => __('Session deleted'),
     'result.corrected' => __('Result corrected'), 'results.exported' => __('Anonymous results exported'), 'workspace.exported' => __('Workspace data exported'),
-    'result_presentation.updated' => __('Result page policy updated'),
+    'result_presentation.updated' => __('Result page policy updated'), 'public_branding.updated' => __('Public branding updated'),
 ];
-$entityLabels = ['test' => __('Assessment'), 'test_version' => __('Assessment version'), 'version' => __('Assessment version'), 'question' => __('Question'), 'session' => __('Participant session'), 'result_export' => __('Result export'), 'participants_export' => __('Participant export'), 'sessions_export' => __('Session export'), 'result_presentation' => __('Result page policy')];
+$entityLabels = ['test' => __('Assessment'), 'test_version' => __('Assessment version'), 'version' => __('Assessment version'), 'question' => __('Question'), 'session' => __('Participant session'), 'result_export' => __('Result export'), 'participants_export' => __('Participant export'), 'sessions_export' => __('Session export'), 'result_presentation' => __('Result page policy'), 'public_branding' => __('Public branding')];
 ?>
 <div class="sie-admin sie-workspace-page">
   <?php study_interest_admin_nav('audit'); ?>

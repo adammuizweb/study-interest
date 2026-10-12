@@ -21,6 +21,88 @@ function study_interest_now_utc(): string
         : (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
 }
 
+function study_interest_public_branding_setting_key(): string
+{
+    return 'study_interest_public_branding';
+}
+
+function study_interest_public_branding_defaults(): array
+{
+    return ['schema' => 1, 'brand_title' => '', 'logo_image_url' => ''];
+}
+
+function study_interest_public_branding_url_error(string $url): ?string
+{
+    if ($url === '') return null;
+    if (strlen($url) > 2048 || preg_match('//u', $url) !== 1
+        || preg_match('/[\x00-\x20\x7F]/', $url) === 1 || str_contains($url, '\\')) {
+        return 'Logo URL must be valid bounded text without spaces or control characters.';
+    }
+    $decoded = rawurldecode($url);
+    if (preg_match('/[\x00-\x20\x7F]/', $decoded) === 1 || str_contains($decoded, '\\')) {
+        return 'Logo URL contains an unsafe encoded character.';
+    }
+    $parts = parse_url($url);
+    if (!is_array($parts) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+        return 'Logo URL must not contain credentials or a fragment.';
+    }
+    foreach (explode('/', rawurldecode((string)($parts['path'] ?? ''))) as $segment) {
+        if ($segment === '.' || $segment === '..') return 'Logo URL path traversal is not allowed.';
+    }
+    if (str_starts_with($url, '/')) {
+        if (str_starts_with($url, '//')) return 'Protocol-relative logo URLs are not allowed.';
+        $path = (string)($parts['path'] ?? '');
+        if ($path === '' || $path[0] !== '/' || strtolower($path) === '/private' || str_starts_with(strtolower($path), '/private/')) return 'Choose a public logo URL.';
+        return null;
+    }
+    if (strtolower((string)($parts['scheme'] ?? '')) !== 'https' || trim((string)($parts['host'] ?? '')) === '') {
+        return 'Logo URL must be root-relative or use HTTPS.';
+    }
+    return null;
+}
+
+function study_interest_public_branding_is_valid(mixed $value): bool
+{
+    if (!is_array($value) || (int)($value['schema'] ?? 0) !== 1
+        || !is_string($value['brand_title'] ?? null) || !is_string($value['logo_image_url'] ?? null)) return false;
+    $title = (string)$value['brand_title'];
+    return mb_strlen($title) <= 120 && preg_match('//u', $title) === 1
+        && preg_match('/[\x00-\x1F\x7F]/', $title) !== 1
+        && study_interest_public_branding_url_error((string)$value['logo_image_url']) === null;
+}
+
+function study_interest_public_branding_normalize(mixed $value): array
+{
+    if (!is_array($value)) return study_interest_public_branding_defaults();
+    $title = is_string($value['brand_title'] ?? null) ? trim((string)$value['brand_title']) : '';
+    $url = is_string($value['logo_image_url'] ?? null) ? trim((string)$value['logo_image_url']) : '';
+    if (mb_strlen($title) > 120 || preg_match('//u', $title) !== 1 || preg_match('/[\x00-\x1F\x7F]/', $title) === 1) $title = '';
+    if (study_interest_public_branding_url_error($url) !== null) $url = '';
+    return ['schema' => 1, 'brand_title' => $title, 'logo_image_url' => $url];
+}
+
+function study_interest_public_branding(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->prepare('SELECT value FROM settings WHERE `key`=? LIMIT 1');
+        $statement->execute([study_interest_public_branding_setting_key()]);
+        $raw = $statement->fetchColumn();
+        if (!is_string($raw) || $raw === '') return study_interest_public_branding_defaults();
+        $decoded = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+        return study_interest_public_branding_is_valid($decoded)
+            ? study_interest_public_branding_normalize($decoded)
+            : study_interest_public_branding_defaults();
+    } catch (Throwable $error) {
+        error_log('[study-interest] public branding unavailable: ' . $error->getMessage());
+        return study_interest_public_branding_defaults();
+    }
+}
+
+function study_interest_public_branding_hash(array $branding): string
+{
+    return hash('sha256', json_encode(study_interest_public_branding_normalize($branding), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
 function study_interest_result_presentation_setting_key(): string
 {
     return 'study_interest_result_presentation';
