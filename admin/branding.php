@@ -16,3 +16,60 @@ $canManage = study_interest_admin_can('plugin.study-interest.presentation.manage
     <?php if ($canManage): ?><div class="sie-sticky-save"><div><strong><?= study_interest_h(__('Global public branding')) ?></strong><span><?= study_interest_h(__('Changes are immediate and recorded in Activity log.')) ?></span></div><button class="adam-button" type="submit"><?= study_interest_h(__('Save branding')) ?></button></div><?php else: ?><div class="sie-callout"><strong><?= study_interest_h(__('Read-only branding')) ?></strong><p><?= study_interest_h(__('You can review public branding but do not have permission to change it.')) ?></p></div><?php endif; ?>
   </form>
 </div>
+<script src="/static/js/add/modal-helpers.js"></script>
+<script src="/static/js/add/media-selector.js"></script>
+<script>
+(function () {
+  const branding = document.querySelector('[data-sie-branding]');
+  if (!branding || branding.dataset.sieBrandingReady === '1') return;
+  branding.dataset.sieBrandingReady = '1';
+
+  const input = branding.querySelector('[data-sie-branding-url]');
+  const titleInput = branding.querySelector('[data-sie-branding-title]');
+  const preview = branding.querySelector('[data-sie-branding-preview]');
+  const image = preview?.querySelector('img');
+  const mark = preview?.querySelector('.sie-branding-default-mark');
+  const title = preview?.querySelector('strong');
+  const mediaPickerUrl = branding.dataset.sieMediaPickerUrl || '';
+  const notifyError = (message) => {
+    if (window.NewNotifToast && typeof window.NewNotifToast.show === 'function') {
+      window.NewNotifToast.show({type: 'error', title: <?= json_encode(__('Media Library'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, message});
+    }
+  };
+  const updatePreview = () => {
+    const url = input?.value.trim() || '';
+    if (image && url) { image.src = url; image.hidden = false; }
+    if (image && !url) { image.removeAttribute('src'); image.hidden = true; }
+    if (mark) mark.hidden = url !== '';
+    if (title) title.textContent = titleInput?.value.trim() || preview?.dataset.sieBrandingFallbackTitle || '';
+  };
+
+  branding.querySelector('[data-sie-branding-clear]')?.addEventListener('click', () => {
+    if (!input) return;
+    input.value = '';
+    updatePreview();
+    input.focus();
+  });
+  branding.querySelector('[data-sie-branding-choose]')?.addEventListener('click', () => {
+    if (!input || !mediaPickerUrl || typeof window.openMediaSelector !== 'function') {
+      notifyError(<?= json_encode(__('Media selector not available yet.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+      return;
+    }
+    window.openMediaSelector({url: mediaPickerUrl})
+      .then((detail) => {
+        const media = typeof window.normalizeMedia === 'function' ? window.normalizeMedia(detail) : detail;
+        if (!media?.url) return;
+        input.value = media.url;
+        updatePreview();
+      })
+      .catch((error) => {
+        console.error('Study Interest media selector error', error);
+        notifyError(<?= json_encode(__('Failed to select media.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+      });
+  });
+  input?.addEventListener('input', updatePreview);
+  titleInput?.addEventListener('input', updatePreview);
+  image?.addEventListener('error', () => { image.hidden = true; if (mark) mark.hidden = false; });
+  updatePreview();
+})();
+</script>

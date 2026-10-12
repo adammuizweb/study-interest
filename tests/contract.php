@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.5', 'plugin version is 0.9.5');
+$check(($manifest['version'] ?? null) === '0.9.6', 'plugin version is 0.9.6');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -103,7 +103,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.5'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.6'), 'dashboard assets are scoped to Study Interest routes');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -186,11 +186,13 @@ $check(str_contains($brandingSaveSource, 'csrf_check')
     && str_contains($brandingSaveSource, 'settings_set')
     && str_contains($brandingSaveSource, 'public_branding.updated')
     && !str_contains($brandingSaveSource, 'study_interest_test_versions'), 'branding updates are optimistic, authorized, audited, and separate from immutable versions');
-$check(str_contains($adminSource, 'window.openMediaSelector')
+$check(str_contains($brandingPageSource, 'window.openMediaSelector')
+    && str_contains($brandingPageSource, '/static/js/add/modal-helpers.js')
+    && str_contains($brandingPageSource, '/static/js/add/media-selector.js')
+    && str_contains($brandingPageSource, 'dataset.sieBrandingReady')
     && str_contains($brandingPageSource, 'ADMIN_BASE_PATH')
     && str_contains($brandingPageSource, '/admin/modal_img/index.php?embedded=1&visibility=public')
-    && !str_contains($adminSource, 'list_modal.php')
-    && str_contains($pluginSource, '/static/js/add/media-selector.js'), 'branding uses the complete Core Media Library selector contract for public images');
+    && !str_contains($brandingPageSource, 'list_modal.php'), 'branding initializes the complete Core Media Library selector after its page markup');
 $check(str_contains($publicResultSource, "'EKSPLORASI, BUKAN UJIAN'")
     && str_contains($publicResultSource, "'Pertanyaan'")
     && str_contains($publicResultSource, "'HASIL EKSPLORASIMU'")
