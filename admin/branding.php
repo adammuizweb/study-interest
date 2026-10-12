@@ -6,7 +6,7 @@ adiwira_require_permission($pdo, 'plugin.study-interest.presentation.view', fals
 $branding = study_interest_public_branding($pdo);
 $canManage = study_interest_admin_can('plugin.study-interest.presentation.manage');
 ?>
-<div class="sie-admin sie-workspace-page" data-sie-branding>
+<div class="sie-admin sie-workspace-page" data-sie-branding data-sie-media-picker-url="<?= study_interest_h(rtrim((string)ADMIN_BASE_PATH, '/') . '/admin/modal_img/index.php?embedded=1&visibility=public') ?>">
   <?php study_interest_admin_nav('branding'); ?>
   <header class="sie-admin-head"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Participant experience')) ?></span><h1 class="page-heading"><?= study_interest_h(__('Public branding')) ?></h1><p><?= study_interest_h(__('Set the logo and brand title shown in the public assessment header without changing assessment versions, scoring, or results.')) ?></p></div><div class="sie-admin-actions"><a class="adam-button secondary" href="/study-interest/" target="_blank" rel="noopener"><?= study_interest_h(__('Preview public assessment')) ?> <span aria-hidden="true">&nearr;</span></a></div></header>
   <section class="sie-guidance-card"><strong><?= study_interest_h(__('Global presentation')) ?></strong><p><?= study_interest_h(__('These values apply immediately to landing, in-progress, and completed-session headers. Leave either field empty to use the assessment title and built-in mark.')) ?></p></section>

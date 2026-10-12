@@ -51,6 +51,7 @@
     const image = preview?.querySelector('img');
     const mark = preview?.querySelector('.sie-branding-default-mark');
     const title = preview?.querySelector('strong');
+    const mediaPickerUrl = branding.dataset.sieMediaPickerUrl || '';
     const updatePreview = () => {
       const url = input?.value.trim() || '';
       if (image && url) { image.src = url; image.hidden = false; }
@@ -64,16 +65,16 @@
       updatePreview();
       input.focus();
     });
-    branding.querySelector('[data-sie-branding-choose]')?.addEventListener('click', async () => {
-      if (!input || typeof window.openMediaSelector !== 'function') return;
-      const detail = await window.openMediaSelector({
-        url: (window.ADMIN_PATH || '/adiwira') + '/admin/modal_img/list_modal.php?embedded=1&visibility=public',
-        context: {surface: 'plugin.study-interest.branding', consumer: 'study-interest', field: 'logo_image_url', selection_mode: 'review'}
-      });
-      const media = typeof window.normalizeMedia === 'function' ? window.normalizeMedia(detail) : null;
-      if (!media?.url) return;
-      input.value = media.url;
-      updatePreview();
+    branding.querySelector('[data-sie-branding-choose]')?.addEventListener('click', () => {
+      if (!input || !mediaPickerUrl || typeof window.openMediaSelector !== 'function') return;
+      window.openMediaSelector({ url: mediaPickerUrl })
+        .then((detail) => {
+          const media = typeof window.normalizeMedia === 'function' ? window.normalizeMedia(detail) : detail;
+          if (!media?.url) return;
+          input.value = media.url;
+          updatePreview();
+        })
+        .catch((error) => console.error('Study Interest media selector error', error));
     });
     input?.addEventListener('input', updatePreview);
     titleInput?.addEventListener('input', updatePreview);
