@@ -122,11 +122,11 @@ function study_interest_result_presentation_defaults(): array
             'next_steps' => 'show',
             'disclaimer' => 'show',
         ],
-        'masked_title' => 'Your result is being reviewed',
-        'masked_message' => 'An authorized administrator will provide information about this result.',
-        'hidden_title' => 'This result is not available yet',
-        'hidden_message' => 'The result page has not been made available to participants.',
-        'section_mask_message' => 'An authorized administrator will provide information about this part of the result.',
+        'masked_title' => 'An administrator will share your result',
+        'masked_message' => 'An authorized administrator will provide your result directly.',
+        'hidden_title' => 'Thank you for participating',
+        'hidden_message' => 'Your responses have been submitted.',
+        'section_mask_message' => 'An authorized administrator will provide this part of your result directly.',
     ];
 }
 

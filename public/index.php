@@ -46,9 +46,10 @@ if ($publicId !== '' && $session === null) {
         $legacyConfiguration = (int)($configuration['schema_version'] ?? 1) < 2;
         $page_language = (string)($configuration['locale'] ?? ($legacyConfiguration ? 'id' : 'en'));
         $presentation = study_interest_result_presentation($pdo);
+        if (in_array((string)$presentation['mode'], ['masked', 'hidden'], true)) $page_language = 'en';
         if ((string)$presentation['mode'] === 'hidden') {
             $page_class .= ' sie-state-page';
-            $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">' . ($legacyConfiguration ? 'AKSES HASIL' : 'RESULT ACCESS') . '</p><h1>' . study_interest_h((string)$presentation['hidden_title']) . '</h1><p>' . study_interest_h((string)$presentation['hidden_message']) . '</p><a class="sie-button" href="/study-interest/">' . ($legacyConfiguration ? 'Kembali' : 'Back') . ' <span aria-hidden="true">&rarr;</span></a></main>';
+            $content_html = '<main class="sie-state"><span class="sie-logo-mark" aria-hidden="true"></span><p class="sie-kicker">THANK YOU</p><h1>' . study_interest_h((string)$presentation['hidden_title']) . '</h1><p>' . study_interest_h((string)$presentation['hidden_message']) . '</p><a class="sie-button" href="/study-interest/">Back <span aria-hidden="true">&rarr;</span></a></main>';
             require __DIR__ . '/layout.php';
             return;
         }
@@ -72,7 +73,7 @@ if ($publicId !== '' && $session === null) {
         };
         $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Indeks kecocokan minat');
         $sectionState = static fn(string $key): string => (string)($presentation['sections'][$key] ?? 'show');
-        $renderMask = static function (string $label, ?string $message = null, bool $page = false) use ($presentation, $legacyConfiguration): void {
+        $renderMask = static function (string $label, ?string $message = null, bool $page = false) use ($presentation): void {
             $message ??= (string)$presentation['section_mask_message'];
             ?><section class="sie-result-mask<?= $page ? ' sie-result-mask-page' : '' ?>" aria-label="<?= study_interest_h($label) ?>">
                 <div class="sie-result-mask-preview" aria-hidden="true">
@@ -80,7 +81,7 @@ if ($publicId !== '' && $session === null) {
                     <div class="sie-mask-preview-cards"><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span><span><i></i><b></b><small></small></span></div>
                     <div class="sie-mask-preview-bars"><span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span></div>
                 </div>
-                <div class="sie-result-mask-copy"><p class="sie-kicker"><?= $legacyConfiguration ? 'HASIL DISAMARKAN' : 'MASKED RESULT' ?></p><?php if ($page): ?><h1><?= study_interest_h($label) ?></h1><?php else: ?><h2><?= study_interest_h($label) ?></h2><?php endif; ?><p><?= study_interest_h($message) ?></p><?php if ($page): ?><a class="sie-button" href="/study-interest/"><?= $legacyConfiguration ? 'Kembali' : 'Back' ?> <span aria-hidden="true">&rarr;</span></a><?php endif; ?></div>
+                <div class="sie-result-mask-copy"><p class="sie-kicker">FOLLOW-UP</p><?php if ($page): ?><h1><?= study_interest_h($label) ?></h1><?php else: ?><h2><?= study_interest_h($label) ?></h2><?php endif; ?><p><?= study_interest_h($message) ?></p><?php if ($page): ?><a class="sie-button" href="/study-interest/">Back <span aria-hidden="true">&rarr;</span></a><?php endif; ?></div>
             </section><?php
         };
         ob_start();
@@ -236,7 +237,7 @@ if ($publicId !== '' && $session === null) {
     $genericPublished = (int)($publishedConfiguration['schema_version'] ?? 1) >= 2;
     if (!$genericPublished) {
         $publishedConfiguration['public_copy'] = [
-            'landing_kicker' => 'EKSPLORASI, BUKAN UJIAN', 'intake_kicker' => 'SEBELUM MULAI', 'question_count_suffix' => 'pertanyaan', 'graphic_label' => 'pilihan untuk membaca pola', 'duration_prefix' => 'sekitar', 'duration_suffix' => 'menit',
+            'landing_kicker' => 'EKSPLORASI, BUKAN UJIAN', 'intake_kicker' => 'SEBELUM MULAI', 'question_count_suffix' => 'pertanyaan', 'graphic_label' => 'pilihan untuk membaca pola',
             'feature_one_title' => 'Tanpa timer', 'feature_one_body' => 'Jawab dengan ritmemu sendiri.',
             'feature_two_title' => 'Tersimpan otomatis', 'feature_two_body' => 'Lanjutkan di browser yang sama.',
             'feature_three_title' => 'Tidak ada jawaban benar', 'feature_three_body' => 'Pilih yang paling menggambarkan dirimu.',
@@ -269,14 +270,13 @@ if ($publicId !== '' && $session === null) {
     $assessmentTitle = $assessmentTitle !== '' ? $assessmentTitle : 'Study Interest Explorer';
     $assessmentDescription = $assessmentDescription !== '' ? $assessmentDescription : 'Temukan pola minat, aktivitas, dan cara belajar yang terasa paling dekat denganmu.';
     $questionCount = is_array($publishedVersion) ? max(0, (int)$publishedVersion['expected_question_count']) : 0;
-    $estimatedMinutes = max(3, (int)ceil($questionCount / 4));
     $page_title = $assessmentTitle;
     ob_start();
     ?>
     <main class="sie-landing">
         <header class="sie-site-header">
             <a class="sie-logo" href="/study-interest/"><?php $renderPublicBrand($assessmentTitle); ?></a>
-            <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?> <i></i> <?= study_interest_h((string)($publicCopy['duration_prefix'] ?? 'about')) ?> <?= $estimatedMinutes ?> <?= study_interest_h((string)($publicCopy['duration_suffix'] ?? 'minutes')) ?></span>
+            <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?> <i></i> <?= study_interest_h((string)($publicCopy['feature_one_title'] ?? 'No timer')) ?></span>
         </header>
         <div class="sie-landing-grid">
             <section class="sie-hero" aria-labelledby="sie-landing-title">

@@ -9,9 +9,11 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.6` provides a generic schema-v2 assessment builder with a neutral
-18-question English starter and a blank starting point. Dashboard authors can
-create and remove sections, dimensions, and study directions; edit questions,
+Version `0.9.7` removes generated completion-time estimates, presents an explicit
+no-timer state, and uses consistent English follow-up or thank-you copy when
+participant results are limited. It also provides a generic schema-v2 assessment
+builder with a neutral 18-question English starter and a blank starting point.
+Dashboard authors can create and remove sections, dimensions, and study directions; edit questions,
 answer scoring, direction weights, thresholds, classifications, interpretation
 rules, participant intake fields, consent and privacy copy, all primary
 public/result labels, and global public header branding without editing PHP or

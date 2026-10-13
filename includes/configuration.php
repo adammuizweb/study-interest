@@ -269,7 +269,7 @@ function study_interest_generic_configuration_errors(array $configuration, bool 
     $privacyUrl = (string)($intake['privacy_url'] ?? '');
     if ($privacyUrl !== '' && (filter_var($privacyUrl, FILTER_VALIDATE_URL) === false || !str_starts_with($privacyUrl, 'https://'))) $errors[] = 'Privacy URL must be an HTTPS URL.';
     $publicCopy = is_array($configuration['public_copy'] ?? null) ? $configuration['public_copy'] : [];
-    foreach (['landing_kicker', 'question_count_suffix', 'duration_prefix', 'duration_suffix', 'feature_one_title', 'feature_one_body', 'feature_two_title', 'feature_two_body', 'feature_three_title', 'feature_three_body', 'progress_label', 'back_label', 'next_label', 'complete_label', 'ready_label', 'saving_label', 'saved_label', 'save_error', 'preparing_label', 'start_label'] as $key) {
+    foreach (['landing_kicker', 'question_count_suffix', 'feature_one_title', 'feature_one_body', 'feature_two_title', 'feature_two_body', 'feature_three_title', 'feature_three_body', 'progress_label', 'back_label', 'next_label', 'complete_label', 'ready_label', 'saving_label', 'saved_label', 'save_error', 'preparing_label', 'start_label'] as $key) {
         if (!is_string($publicCopy[$key] ?? null) || trim((string)$publicCopy[$key]) === '' || mb_strlen((string)$publicCopy[$key]) > 1000) $errors[] = "Public interface copy {$key} is invalid.";
     }
     $interpretationCodes = [];

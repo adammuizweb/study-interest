@@ -29,8 +29,8 @@ $resultTextFields = $generic ? study_interest_generic_result_text_keys() : [
     'professional_pathway_body' => 2000, 'disclaimer' => 2000,
 ];
 $publicCopyLabels = [
-    'landing_kicker' => __('Landing kicker'), 'question_count_suffix' => __('Question-count suffix'), 'duration_prefix' => __('Duration prefix'),
-    'duration_suffix' => __('Duration suffix'), 'feature_one_title' => __('Feature one title'), 'feature_one_body' => __('Feature one text'),
+    'landing_kicker' => __('Landing kicker'), 'question_count_suffix' => __('Question-count suffix'),
+    'feature_one_title' => __('Feature one title'), 'feature_one_body' => __('Feature one text'),
     'feature_two_title' => __('Feature two title'), 'feature_two_body' => __('Feature two text'), 'feature_three_title' => __('Feature three title'),
     'feature_three_body' => __('Feature three text'), 'progress_label' => __('Progress label'), 'back_label' => __('Back button'),
     'next_label' => __('Next button'), 'complete_label' => __('Complete button'), 'ready_label' => __('Ready state'), 'saving_label' => __('Saving state'),

@@ -117,8 +117,6 @@ return [
     'public_copy' => [
         'landing_kicker' => 'EXPLORE, DO NOT LABEL',
         'question_count_suffix' => 'questions',
-        'duration_prefix' => 'about',
-        'duration_suffix' => 'minutes',
         'feature_one_title' => 'No timer',
         'feature_one_body' => 'Answer at your own pace.',
         'feature_two_title' => 'Saved automatically',

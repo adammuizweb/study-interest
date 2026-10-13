@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.6', 'plugin version is 0.9.6');
+$check(($manifest['version'] ?? null) === '0.9.7', 'plugin version is 0.9.7');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -36,7 +36,8 @@ $check(is_file($migration) && is_file($root . '/migrations/0002-upgrade-foundati
     && is_file($root . '/migrations/0009-enforce-single-live-assessment.php')
     && is_file($root . '/migrations/0010-neutral-result-presentation.php')
     && is_file($root . '/migrations/0011-seed-public-branding.php')
-    && is_file($root . '/migrations/0012-verify-public-branding.php'), 'append-only foundation, workspace, result-presentation, and branding migrations exist');
+    && is_file($root . '/migrations/0012-verify-public-branding.php')
+    && is_file($root . '/migrations/0013-result-follow-up-copy.php'), 'append-only foundation, workspace, result-presentation, and branding migrations exist');
 $check(!is_file($root . '/schema.sql'), 'request-time schema file was removed');
 $check(str_contains($schema, 'study_interest_test_versions') && str_contains($schema, 'configuration_hash'), 'version table freezes configuration identity');
 $check(str_contains($schema, 'result_snapshot_json'), 'result snapshot field exists');
@@ -48,6 +49,10 @@ $check(str_contains($operationalMigration, 'study_interest_result_revisions') &&
 $check(str_contains($operationalMigration, 'information_schema.COLUMNS') && str_contains($operationalMigration, 'CREATE TABLE IF NOT EXISTS'), 'operational migration is retry-safe after partial DDL');
 $presentationMigration = (string)file_get_contents($root . '/migrations/0006-seed-result-presentation.php');
 $check(str_contains($presentationMigration, 'study_interest_result_presentation') && str_contains($presentationMigration, "'mode' => 'full'"), 'migration explicitly seeds the backward-compatible result-page policy');
+$followUpMigration = (string)file_get_contents($root . '/migrations/0013-result-follow-up-copy.php');
+$check(str_contains($followUpMigration, "['Your result is being reviewed', 'An administrator will share your result']")
+    && str_contains($followUpMigration, "['This result is not available yet', 'Thank you for participating']")
+    && str_contains($followUpMigration, "!== \$previous"), 'result follow-up migration updates only exact historical defaults');
 $singleLiveMigration = (string)file_get_contents($root . '/migrations/0009-enforce-single-live-assessment.php');
 $check(str_contains($singleLiveMigration, 'GENERATED ALWAYS AS')
     && str_contains($singleLiveMigration, 'uq_study_interest_public_slot')
@@ -100,10 +105,14 @@ foreach ($manifest['static']['copy'] ?? [] as $asset) {
 }
 
 $pluginSource = (string)file_get_contents($root . '/plugin.php');
+$publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.6'), 'dashboard assets are scoped to Study Interest routes');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.7')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.7')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.7')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.7'), 'plugin assets use the release cache key');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -176,6 +185,19 @@ $check(str_contains($publicResultSource, 'direct_recommendation_limit')
     && str_contains($publicResultSource, "elseif (\$sectionState('interpretation') === 'mask')"), 'public result respects the immutable direction limit and masks optional sections without existence disclosure');
 $check(str_contains($publicResultSource, '$assessmentTitle')
     && str_contains($publicResultSource, '$assessmentDescription'), 'public assessment identity comes from dashboard-managed configuration');
+$check(!str_contains($publicResultSource, '$estimatedMinutes')
+    && !str_contains($publicResultSource, "['duration_prefix']")
+    && !str_contains($publicResultSource, "['duration_suffix']")
+    && str_contains($publicResultSource, "['feature_one_title'] ?? 'No timer'"), 'landing page states there is no timer without estimating a duration');
+$check(str_contains($publicResultSource, '<p class="sie-kicker">THANK YOU</p>')
+    && str_contains($publicResultSource, '<p class="sie-kicker">FOLLOW-UP</p>')
+    && str_contains($publicResultSource, "['masked', 'hidden'], true)) \$page_language = 'en'")
+    && substr_count($publicResultSource, '>Back <span aria-hidden="true">&rarr;</span>') === 2
+    && !str_contains($publicResultSource, "\$legacyConfiguration ? 'Kembali' : 'Back'")
+    && !str_contains($publicResultSource, 'TERIMA KASIH')
+    && !str_contains($publicResultSource, 'TINDAK LANJUT')
+    && !str_contains($publicResultSource, 'HASIL DISAMARKAN')
+    && !str_contains($publicResultSource, 'AKSES HASIL'), 'limited result pages use follow-up and thank-you language');
 $check(substr_count($publicResultSource, '$renderPublicBrand($assessmentTitle)') === 3
     && str_contains($publicResultSource, 'study_interest_public_branding($pdo)')
     && str_contains($publicResultStyles, '.sie-logo-image'), 'global branding renders in every public assessment header without replacing assessment identity');
@@ -222,6 +244,10 @@ $presentation = study_interest_result_presentation_normalize([
 ]);
 $check($presentation['mode'] === 'masked' && $presentation['sections']['hero'] === 'hide'
     && $presentation['sections']['directions'] === 'mask' && $presentation['sections']['dimensions'] === 'show', 'result-page policy normalizes global and per-section visibility safely');
+$presentationDefaults = study_interest_result_presentation_defaults();
+$check($presentationDefaults['masked_title'] === 'An administrator will share your result'
+    && $presentationDefaults['hidden_title'] === 'Thank you for participating'
+    && $presentationDefaults['hidden_message'] === 'Your responses have been submitted.', 'limited result defaults describe administrator follow-up and submission confirmation');
 $check(study_interest_result_presentation_hash($presentation) === study_interest_result_presentation_hash($presentation), 'result-page policy has a deterministic optimistic-lock fingerprint');
 $invalidPresentation = study_interest_result_presentation_defaults();
 $invalidPresentation['mode'] = 'unexpected';
@@ -244,6 +270,10 @@ $check(!study_interest_public_branding_is_valid($invalidBranding), 'public brand
 
 $configuration = study_interest_baseline_configuration();
 $check(study_interest_configuration_errors($configuration) === [], 'packaged baseline passes full configuration validation');
+$historicalDurationConfiguration = $configuration;
+$historicalDurationConfiguration['public_copy']['duration_prefix'] = 'about';
+$historicalDurationConfiguration['public_copy']['duration_suffix'] = 'minutes';
+$check(study_interest_configuration_errors($historicalDurationConfiguration) === [], 'historical published duration copy remains accepted but unused');
 $unsupportedConfiguration = $configuration;
 $unsupportedConfiguration['algorithm_version'] = 'future-unsupported';
 $check(study_interest_configuration_errors($unsupportedConfiguration) !== [], 'unsupported scoring algorithms cannot be published');
