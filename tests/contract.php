@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.7', 'plugin version is 0.9.7');
+$check(($manifest['version'] ?? null) === '0.9.8', 'plugin version is 0.9.8');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -109,10 +109,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.7')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.7')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.7')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.7'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.8')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.8')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.8')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.8'), 'plugin assets use the release cache key');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -168,6 +168,9 @@ $presentationSaveSource = (string)file_get_contents($root . '/admin/result-page/
 $brandingSaveSource = (string)file_get_contents($root . '/admin/branding/save.php');
 $publicResultSource = (string)file_get_contents($root . '/public/index.php');
 $publicResultStyles = (string)file_get_contents($root . '/assets/frontend.css');
+$baselineSource = (string)file_get_contents($root . '/config/baseline.php');
+$configurationSource = (string)file_get_contents($root . '/includes/configuration.php');
+$assessmentEditSource = (string)file_get_contents($root . '/admin/assessments/edit.php');
 $frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
 $adminSource = (string)file_get_contents($root . '/assets/admin.js');
 $brandingPageSource = (string)file_get_contents($root . '/admin/branding.php');
@@ -188,7 +191,14 @@ $check(str_contains($publicResultSource, '$assessmentTitle')
 $check(!str_contains($publicResultSource, '$estimatedMinutes')
     && !str_contains($publicResultSource, "['duration_prefix']")
     && !str_contains($publicResultSource, "['duration_suffix']")
-    && str_contains($publicResultSource, "['feature_one_title'] ?? 'No timer'"), 'landing page states there is no timer without estimating a duration');
+    && !str_contains($publicResultSource, 'feature_one_')
+    && !str_contains($publicResultSource, 'No timer')
+    && !str_contains($publicResultSource, 'Tanpa timer')
+    && str_contains($publicResultSource, '<span class="sie-time-badge"><?= $questionCount ?>'), 'landing badge shows only the question count without timing copy');
+$check(!str_contains($baselineSource, 'feature_one_')
+    && !str_contains($configurationSource, 'feature_one_')
+    && !str_contains($assessmentEditSource, 'feature_one_')
+    && !str_contains($assessmentSaveSource, 'feature_one_'), 'new assessment configuration no longer exposes the retired no-timer feature');
 $check(str_contains($publicResultSource, '<p class="sie-kicker">THANK YOU</p>')
     && str_contains($publicResultSource, '<p class="sie-kicker">FOLLOW-UP</p>')
     && str_contains($publicResultSource, "['masked', 'hidden'], true)) \$page_language = 'en'")
@@ -215,11 +225,19 @@ $check(str_contains($brandingPageSource, 'window.openMediaSelector')
     && str_contains($brandingPageSource, 'ADMIN_BASE_PATH')
     && str_contains($brandingPageSource, '/admin/modal_img/index.php?embedded=1&visibility=public')
     && !str_contains($brandingPageSource, 'list_modal.php'), 'branding initializes the complete Core Media Library selector after its page markup');
-$check(str_contains($publicResultSource, "'EKSPLORASI, BUKAN UJIAN'")
-    && str_contains($publicResultSource, "'Pertanyaan'")
-    && str_contains($publicResultSource, "'HASIL EKSPLORASIMU'")
+$check(str_contains($publicResultSource, "'EXPLORE, DO NOT LABEL'")
+    && str_contains($publicResultSource, "'Question'")
+    && str_contains($publicResultSource, "'YOUR EXPLORATION RESULT'")
     && str_contains($publicResultSource, "\$legacyConfiguration ? 'id' : 'en'")
-    && str_contains($frontendSource, 'copy.progress_item_label'), 'historical schema-v1 public copy remains backward compatible');
+    && str_contains($frontendSource, 'copy.progress_item_label'), 'historical schema-v1 assessments use English plugin-owned interface fallbacks');
+$indonesianUiFragments = [
+    'Hasil privat', 'HASIL EKSPLORASIMU', 'Tiga dimensi minat teratas', 'Ringkasan profil minat',
+    'ARAH BERIKUTNYA', 'Bidang untuk dieksplorasi', 'MASIH TERBUKA', 'PETA LENGKAP', 'JALUR PROFESI',
+    'Langkah berikutnya', 'Catatan hasil', 'Progres eksplorasi', 'Pertanyaan', 'Kembali', 'Lanjut',
+    'Menyimpan...', 'Tersimpan', 'Jawaban tidak dapat disimpan', 'SEBELUM MULAI', 'Kenalkan dirimu',
+    'Nomor telepon', 'JavaScript diperlukan',
+];
+$check(array_filter($indonesianUiFragments, static fn(string $fragment): bool => str_contains($publicResultSource, $fragment)) === [], 'participant source contains no Indonesian plugin-owned interface fallback');
 $participantEditSource = (string)file_get_contents($root . '/admin/participants/edit.php');
 $participantSaveSource = (string)file_get_contents($root . '/admin/participants/save.php');
 $check(str_contains($participantEditSource, 'expected_contact_hash')
@@ -274,6 +292,15 @@ $historicalDurationConfiguration = $configuration;
 $historicalDurationConfiguration['public_copy']['duration_prefix'] = 'about';
 $historicalDurationConfiguration['public_copy']['duration_suffix'] = 'minutes';
 $check(study_interest_configuration_errors($historicalDurationConfiguration) === [], 'historical published duration copy remains accepted but unused');
+$historicalNoTimerConfiguration = $configuration;
+$historicalNoTimerConfiguration['public_copy']['feature_one_title'] = 'No timer';
+$historicalNoTimerConfiguration['public_copy']['feature_one_body'] = 'Answer at your own pace.';
+$check(study_interest_configuration_errors($historicalNoTimerConfiguration) === [], 'historical no-timer copy remains accepted but unused');
+$localizedConfiguration = $configuration;
+$localizedConfiguration['title'] = 'Eksplorasi Minat';
+$localizedConfiguration['questions'][0]['prompt'] = 'Saya suka mempelajari pertanyaan yang rumit.';
+$localizedConfiguration['public_copy']['back_label'] = 'Kembali';
+$check(study_interest_configuration_errors($localizedConfiguration) === [], 'creator-authored assessment content may use any language');
 $unsupportedConfiguration = $configuration;
 $unsupportedConfiguration['algorithm_version'] = 'future-unsupported';
 $check(study_interest_configuration_errors($unsupportedConfiguration) !== [], 'unsupported scoring algorithms cannot be published');

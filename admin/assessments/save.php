@@ -63,7 +63,7 @@ try {
     if ($generic) {
         $postedPublicCopy = is_array($_POST['public_copy'] ?? null) ? $_POST['public_copy'] : [];
         $publicCopy = [];
-        foreach (['landing_kicker', 'question_count_suffix', 'feature_one_title', 'feature_one_body', 'feature_two_title', 'feature_two_body', 'feature_three_title', 'feature_three_body', 'progress_label', 'back_label', 'next_label', 'complete_label', 'ready_label', 'saving_label', 'saved_label', 'save_error', 'preparing_label', 'start_label'] as $key) {
+        foreach (['landing_kicker', 'question_count_suffix', 'feature_two_title', 'feature_two_body', 'feature_three_title', 'feature_three_body', 'progress_label', 'back_label', 'next_label', 'complete_label', 'ready_label', 'saving_label', 'saved_label', 'save_error', 'preparing_label', 'start_label'] as $key) {
             $value = trim((string)($postedPublicCopy[$key] ?? ''));
             if ($value === '' || mb_strlen($value) > 1000) throw new DomainException("Public interface copy {$key} is invalid.");
             $publicCopy[$key] = $value;

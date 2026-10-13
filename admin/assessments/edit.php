@@ -30,9 +30,8 @@ $resultTextFields = $generic ? study_interest_generic_result_text_keys() : [
 ];
 $publicCopyLabels = [
     'landing_kicker' => __('Landing kicker'), 'question_count_suffix' => __('Question-count suffix'),
-    'feature_one_title' => __('Feature one title'), 'feature_one_body' => __('Feature one text'),
-    'feature_two_title' => __('Feature two title'), 'feature_two_body' => __('Feature two text'), 'feature_three_title' => __('Feature three title'),
-    'feature_three_body' => __('Feature three text'), 'progress_label' => __('Progress label'), 'back_label' => __('Back button'),
+    'feature_two_title' => __('Feature one title'), 'feature_two_body' => __('Feature one text'), 'feature_three_title' => __('Feature two title'),
+    'feature_three_body' => __('Feature two text'), 'progress_label' => __('Progress label'), 'back_label' => __('Back button'),
     'next_label' => __('Next button'), 'complete_label' => __('Complete button'), 'ready_label' => __('Ready state'), 'saving_label' => __('Saving state'),
     'saved_label' => __('Saved state'), 'save_error' => __('Save error'), 'preparing_label' => __('Preparing state'), 'start_label' => __('Start button'),
 ];

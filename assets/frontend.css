@@ -38,7 +38,6 @@ a { color: inherit; }
   linear-gradient(rgba(16, 22, 47, .045) 1px, transparent 1px),
   linear-gradient(90deg, rgba(16, 22, 47, .045) 1px, transparent 1px), var(--canvas); background-size: 48px 48px; }
 .sie-time-badge { display: inline-flex; align-items: center; gap: 10px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .7); color: var(--muted); font-size: .78rem; font-weight: 800; }
-.sie-time-badge i { width: 4px; height: 4px; border-radius: 50%; background: var(--coral); }
 .sie-landing-grid { width: min(1200px, calc(100% - 64px)); margin: 42px auto 0; display: grid; grid-template-columns: minmax(0, .9fr) minmax(520px, 1.1fr); gap: clamp(48px, 7vw, 100px); align-items: start; }
 .sie-hero { position: sticky; top: 36px; padding-top: 30px; }
 .sie-hero h1 { max-width: 650px; margin: 0; color: var(--navy); font-size: clamp(3.6rem, 6.7vw, 6.8rem); font-weight: 900; line-height: .87; letter-spacing: -.075em; }
@@ -232,7 +231,7 @@ a { color: inherit; }
   .sie-hero { position: static; padding-top: 20px; }
   .sie-hero h1 { max-width: 720px; }
   .sie-hero-graphic { width: min(420px, 85%); }
-  .sie-feature-list { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .sie-feature-list { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .sie-feature-list li { grid-template-columns: 1fr; gap: 4px; }
   .sie-assessment-header { grid-template-columns: 1fr minmax(280px, 380px); }
   .sie-question-fieldset { grid-template-columns: 1fr; }
