@@ -103,6 +103,56 @@ function study_interest_public_branding_hash(array $branding): string
     return hash('sha256', json_encode(study_interest_public_branding_normalize($branding), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
+function study_interest_site_origin(PDO $pdo): string
+{
+    $configured = '';
+    try {
+        if (function_exists('settings_get')) $configured = trim((string)(settings_get($pdo, 'site_url', '') ?? ''));
+    } catch (Throwable) {}
+    $parts = $configured !== '' ? parse_url($configured) : false;
+    if (is_array($parts) && in_array(strtolower((string)($parts['scheme'] ?? '')), ['http', 'https'], true)
+        && trim((string)($parts['host'] ?? '')) !== '' && !isset($parts['user'], $parts['pass'], $parts['query'], $parts['fragment'])) {
+        return rtrim($configured, '/');
+    }
+
+    $scheme = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off' ? 'https' : 'http';
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    if (strlen($host) > 253 || preg_match('/\A[a-z0-9.-]+(?::[0-9]{1,5})?\z/i', $host) !== 1) $host = 'localhost';
+    return $scheme . '://' . $host;
+}
+
+function study_interest_site_favicon_url(PDO $pdo): string
+{
+    $fallback = '/static/img/favicon/apple-touch-icon.png';
+    if (!function_exists('settings_get')) return $fallback;
+    try {
+        $url = trim((string)(settings_get($pdo, 'favicon_url', '') ?? ''));
+    } catch (Throwable) {
+        return $fallback;
+    }
+    if ($url === '') return $fallback;
+    if (function_exists('settings_favicon_url_validation_error')) {
+        try {
+            return settings_favicon_url_validation_error($url) === null ? $url : $fallback;
+        } catch (Throwable) {
+            return $fallback;
+        }
+    }
+
+    $parts = parse_url($url);
+    $path = is_array($parts) ? rawurldecode((string)($parts['path'] ?? '')) : '';
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    return study_interest_public_branding_url_error($url) === null && in_array($extension, ['png', 'ico', 'svg'], true)
+        ? $url
+        : $fallback;
+}
+
+function study_interest_absolute_public_url(PDO $pdo, string $url): string
+{
+    if (str_starts_with(strtolower($url), 'https://')) return $url;
+    return study_interest_site_origin($pdo) . '/' . ltrim($url, '/');
+}
+
 function study_interest_result_presentation_setting_key(): string
 {
     return 'study_interest_result_presentation';

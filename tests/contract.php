@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.8', 'plugin version is 0.9.8');
+$check(($manifest['version'] ?? null) === '0.9.9', 'plugin version is 0.9.9');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -109,10 +109,15 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.8')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.8')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.8')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.8'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.9')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.9')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.9')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.9'), 'plugin assets use the release cache key');
+$check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
+    && str_contains($publicLayoutSource, 'property="og:image"')
+    && str_contains($publicLayoutSource, 'name="twitter:image"')
+    && str_contains($publicLayoutSource, 'property="og:url"')
+    && str_contains($publicLayoutSource, 'rel="canonical"'), 'public links expose Core favicon, canonical, Open Graph, and Twitter metadata');
 $check(!str_contains($pluginSource, 'study_interest_install_schema'), 'normal requests do not run schema installation');
 $check(!str_contains($pluginSource, "'/../quiz") && !str_contains($pluginSource, 'quiz_attempts'), 'plugin does not load or query Quiz internals');
 foreach (['api/answer' => 'public/api/answer.php', 'api/complete' => 'public/api/complete.php'] as $route => $file) {
@@ -285,6 +290,16 @@ $check(!study_interest_public_branding_is_valid($invalidBranding)
     && study_interest_public_branding_normalize($invalidBranding) === study_interest_public_branding_defaults(), 'invalid public branding fails safely to defaults');
 $invalidBranding['brand_title'] = "Two\nlines";
 $check(!study_interest_public_branding_is_valid($invalidBranding), 'public brand title is bounded single-line text');
+$metadataPdo = new class extends PDO { public function __construct() {} };
+$previousHttps = $_SERVER['HTTPS'] ?? null;
+$previousHost = $_SERVER['HTTP_HOST'] ?? null;
+$_SERVER['HTTPS'] = 'on';
+$_SERVER['HTTP_HOST'] = 'example.test';
+$check(study_interest_site_origin($metadataPdo) === 'https://example.test'
+    && study_interest_site_favicon_url($metadataPdo) === '/static/img/favicon/apple-touch-icon.png'
+    && study_interest_absolute_public_url($metadataPdo, '/static/img/share.png') === 'https://example.test/static/img/share.png', 'public metadata has safe request-origin and Core image fallbacks');
+if ($previousHttps === null) unset($_SERVER['HTTPS']); else $_SERVER['HTTPS'] = $previousHttps;
+if ($previousHost === null) unset($_SERVER['HTTP_HOST']); else $_SERVER['HTTP_HOST'] = $previousHost;
 
 $configuration = study_interest_baseline_configuration();
 $check(study_interest_configuration_errors($configuration) === [], 'packaged baseline passes full configuration validation');

@@ -6,6 +6,7 @@ header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self'");
 $page_title = 'Study Interest Explorer';
+$page_description = 'Explore study interests and preferred learning activities through a private guided assessment.';
 $page_language = 'en';
 $page_class = 'sie-page';
 
@@ -56,6 +57,7 @@ if ($publicId !== '' && $session === null) {
         $page_class .= ' sie-result-page';
         $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Study Interest Explorer')) ?: 'Study Interest Explorer';
         $page_title = $assessmentTitle;
+        $page_description = trim((string)($configuration['description'] ?? '')) ?: $page_description;
         $programs = is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [];
         $directionLimit = max(1, min(50, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
         $recommendations = study_interest_leading_directions($programs, $directionLimit);
@@ -183,6 +185,7 @@ if ($publicId !== '' && $session === null) {
     ];
     $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Study Interest Explorer')) ?: 'Study Interest Explorer';
     $page_title = $assessmentTitle;
+    $page_description = trim((string)($configuration['description'] ?? '')) ?: $page_description;
     $questions = study_interest_public_questions($pdo, (int)$session['version_id']);
     $answers = study_interest_answer_map($pdo, (int)$session['id']);
     $clientQuestions = [];
@@ -270,6 +273,7 @@ if ($publicId !== '' && $session === null) {
     $assessmentDescription = $assessmentDescription !== '' ? $assessmentDescription : 'An editable exploration of academic interests and preferred ways of working.';
     $questionCount = is_array($publishedVersion) ? max(0, (int)$publishedVersion['expected_question_count']) : 0;
     $page_title = $assessmentTitle;
+    $page_description = $assessmentDescription;
     ob_start();
     ?>
     <main class="sie-landing">

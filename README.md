@@ -9,7 +9,8 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.8` uses English for built-in participant interface copy while
+Version `0.9.9` publishes the validated Core favicon and social-sharing metadata
+for public assessment links. It uses English for built-in participant interface copy while
 leaving assessment-authored content in its configured language. The landing
 badge shows only the question count and no longer presents timing copy. It also
 provides a generic schema-v2 assessment builder with a neutral 18-question
