@@ -9,8 +9,10 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.10` allows Site Owners to grant each separate Study Interest
-permission to purpose-built custom roles. It publishes the validated Core favicon
+Version `0.9.11` adds frozen-version answer-impact guidance to the controlled
+result-correction workspace, including target-direction comparisons and bounded
+single-answer alternatives. It allows Site Owners to grant each separate Study
+Interest permission to purpose-built custom roles. It publishes the validated Core favicon
 and social-sharing metadata for public assessment links. It uses English for built-in participant interface copy while
 leaving assessment-authored content in its configured language. The landing
 badge shows only the question count and no longer presents timing copy. It also

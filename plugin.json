@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "title": "Study Interest Explorer",
   "icon": "icon.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
@@ -299,6 +299,14 @@
         "route": "admin/tools/study-interest/sessions/save-correction",
         "file": "admin/sessions/save-correction.php",
         "title": "Save Study Interest Result Correction",
+        "roles": ["admin"],
+        "permission": "plugin.study-interest.results.correct",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/preview-correction",
+        "file": "admin/sessions/preview-correction.php",
+        "title": "Preview Study Interest Result Correction",
         "roles": ["admin"],
         "permission": "plugin.study-interest.results.correct",
         "hidden": true

@@ -5,6 +5,7 @@ $root = dirname(__DIR__);
 require_once $root . '/includes/helpers.php';
 require_once $root . '/includes/configuration.php';
 require_once $root . '/includes/scoring.php';
+require_once $root . '/includes/assessment.php';
 require_once $root . '/includes/export.php';
 $failures = [];
 $check = static function (bool $passed, string $message) use (&$failures): void {
@@ -14,7 +15,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.10', 'plugin version is 0.9.10');
+$check(($manifest['version'] ?? null) === '0.9.11', 'plugin version is 0.9.11');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -77,6 +78,7 @@ $check(($routes['admin/tools/study-interest/participants']['permission'] ?? null
 $check(($routes['admin/tools/study-interest/sessions']['permission'] ?? null) === 'plugin.study-interest.sessions.view'
     && ($routes['admin/tools/study-interest/sessions/view']['permission'] ?? null) === 'plugin.study-interest.sessions.view', 'session list and detail use session-view permission');
 $check(($routes['admin/tools/study-interest/sessions/save-correction']['permission'] ?? null) === 'plugin.study-interest.results.correct', 'result correction action uses dedicated permission');
+$check(($routes['admin/tools/study-interest/sessions/preview-correction']['permission'] ?? null) === 'plugin.study-interest.results.correct', 'result correction preview uses dedicated permission');
 $check(($routes['admin/tools/study-interest/audit']['permission'] ?? null) === 'plugin.study-interest.audit.view', 'audit route uses dedicated permission');
 $check(($routes['admin/tools/study-interest/participants/edit']['permission'] ?? null) === 'plugin.study-interest.contacts.manage'
     && ($routes['admin/tools/study-interest/participants/save']['permission'] ?? null) === 'plugin.study-interest.contacts.manage', 'participant edits use dedicated contact-management permission');
@@ -105,10 +107,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.10')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.10')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.10')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.10'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.11')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.11')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.11')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.11'), 'plugin assets use the release cache key');
 $check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
     && str_contains($publicLayoutSource, 'property="og:image"')
     && str_contains($publicLayoutSource, 'name="twitter:image"')
@@ -141,6 +143,9 @@ $assessmentCreateSource = (string)file_get_contents($root . '/admin/assessments/
 $assessmentDeleteSource = (string)file_get_contents($root . '/admin/assessments/delete.php');
 $assessmentSaveSource = (string)file_get_contents($root . '/admin/assessments/save.php');
 $correctionSource = (string)file_get_contents($root . '/admin/sessions/save-correction.php');
+$correctionPreviewSource = (string)file_get_contents($root . '/admin/sessions/preview-correction.php');
+$correctionPageSource = (string)file_get_contents($root . '/admin/sessions/correct.php');
+$adminSource = (string)file_get_contents($root . '/assets/admin.js');
 $sessionListSource = (string)file_get_contents($root . '/admin/sessions/index.php');
 $sessionViewSource = (string)file_get_contents($root . '/admin/sessions/view.php');
 $check(str_contains($questionSaveSource, 'study_interest_replace_draft_configuration')
@@ -163,6 +168,19 @@ $check(str_contains($correctionSource, 'study_interest_result_revisions')
     && str_contains($correctionSource, 'result.corrected')
     && str_contains($correctionSource, 'changed_questions')
     && str_contains($sessionListSource, 'Edit submitted answers'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
+$check(str_contains($correctionPreviewSource, 'study_interest_correction_preview')
+    && str_contains($correctionPreviewSource, 'study_interest_score_versioned')
+    && str_contains($correctionPreviewSource, 'study_interest_snapshot_matches_result')
+    && str_contains($correctionPreviewSource, "adiwira_require_permission(\$pdo, 'plugin.study-interest.config.view', true)")
+    && str_contains($correctionPreviewSource, 'expected_revision')
+    && str_contains($correctionPreviewSource, 'SELECT status,result_revision')
+    && !preg_match('/\b(?:INSERT|UPDATE|DELETE)\b/i', $correctionPreviewSource), 'correction guidance is read-only, version-scoped, score-reproducible, and separately authorized');
+$check(str_contains($correctionPageSource, 'data-sie-correction-guidance')
+    && str_contains($correctionPageSource, 'data-sie-guidance-target')
+    && str_contains($correctionPageSource, 'sessions/preview-correction')
+    && str_contains($correctionPageSource, "['action' => 'preview']")
+    && str_contains($adminSource, 'data-sie-guidance-suggestions')
+    && str_contains($adminSource, "includes('application/json')"), 'correction workspace exposes target-direction guidance and answer-level impact controls');
 $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
     && str_contains($sessionViewSource, 'plugin.study-interest.contacts.view'), 'session detail separates response and contact access');
 $presentationSaveSource = (string)file_get_contents($root . '/admin/result-page/save.php');
@@ -173,7 +191,6 @@ $baselineSource = (string)file_get_contents($root . '/config/baseline.php');
 $configurationSource = (string)file_get_contents($root . '/includes/configuration.php');
 $assessmentEditSource = (string)file_get_contents($root . '/admin/assessments/edit.php');
 $frontendSource = (string)file_get_contents($root . '/assets/frontend.js');
-$adminSource = (string)file_get_contents($root . '/assets/admin.js');
 $brandingPageSource = (string)file_get_contents($root . '/admin/branding.php');
 $check(str_contains($presentationSaveSource, 'csrf_check')
     && str_contains($presentationSaveSource, 'authorization_lock_actor_permissions')
@@ -366,6 +383,33 @@ $check($result['profile_clarity']['code'] === 'MULTIDISCIPLINARY' && abs($result
 $check(count($result['interpretations']) === 1 && str_contains($result['interpretations'][0], 'quantitative models'), 'configured direction combinations produce interpretation copy');
 $check($result['professional_pathways'] === [], 'professional pathway is excluded from direct ranking');
 $check($result['flags'] === [], 'carefully answered golden profile has no quality flags');
+$preview = study_interest_correction_preview($configuration, 'weighted-choice-2.0', $answers, $answers, 600, 'physics');
+$previewJson = json_encode($preview, JSON_THROW_ON_ERROR);
+$check(($preview['target']['code'] ?? null) === 'physics' && ($preview['changed_count'] ?? null) === 0
+    && count($preview['choices'] ?? []) === count($configuration['questions'])
+    && count($preview['choices']['Q01'] ?? []) === count($configuration['questions'][0]['options'])
+    && !str_contains($previewJson, '"scores"'), 'correction guidance derives complete answer impacts without exposing hidden scoring vectors');
+$changedAnswers = $answers;
+$changedAnswers['Q01'] = $answers['Q01'] === '1' ? '2' : '1';
+$changedPreview = study_interest_correction_preview($configuration, 'weighted-choice-2.0', $answers, $changedAnswers, 600, 'physics');
+$check(($changedPreview['changed_count'] ?? null) === 1
+    && isset($changedPreview['target']['saved_score'], $changedPreview['target']['delta'])
+    && is_array($changedPreview['suggestions'] ?? null), 'correction guidance compares a draft against the saved result and ranks alternatives');
+$largePreviewConfiguration = $configuration;
+for ($index = count($largePreviewConfiguration['questions'][0]['options']); $index < 1000; $index++) {
+    $largePreviewConfiguration['questions'][0]['options'][] = [
+        'code' => 'EXTRA_' . $index,
+        'label' => 'Extra option ' . $index,
+        'scores' => array_fill_keys(array_keys($largePreviewConfiguration['dimensions']), 0),
+    ];
+}
+try {
+    study_interest_correction_preview($largePreviewConfiguration, 'weighted-choice-2.0', $answers, $answers, 600, 'physics');
+    $largePreviewRejected = false;
+} catch (DomainException $error) {
+    $largePreviewRejected = $error->getMessage() === 'This assessment is too large for live correction guidance.';
+}
+$check($largePreviewRejected, 'correction guidance rejects scoring workloads that exceed its live-preview bound');
 $leadingDirections = study_interest_leading_directions($result['programs'], 3);
 $check(count($leadingDirections) === 3 && (string)$leadingDirections[0]['code'] === 'physics', 'closest study directions are always derived from primary direction scores');
 $fastResult = study_interest_score($configuration, $answers, 100);

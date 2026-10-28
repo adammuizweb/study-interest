@@ -29,13 +29,13 @@ $shareImageUrl = isset($pdo) && $pdo instanceof PDO ? study_interest_absolute_pu
     <meta name="twitter:title" content="<?= study_interest_h($metaTitle) ?>">
     <meta name="twitter:description" content="<?= study_interest_h($metaDescription) ?>">
     <meta name="twitter:image" content="<?= study_interest_h($shareImageUrl) ?>">
-    <link rel="stylesheet" href="/static/plugins/study-interest/frontend.css?v=0.9.10">
+    <link rel="stylesheet" href="/static/plugins/study-interest/frontend.css?v=0.9.11">
 </head>
 <body class="<?= study_interest_h($page_class ?? '') ?>">
 <?= $content_html ?? '' ?>
 <?php if (isset($page_data)): ?>
 <script>window.StudyInterestData=<?= json_encode($page_data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
-<script src="/static/plugins/study-interest/frontend.js?v=0.9.10" defer></script>
+<script src="/static/plugins/study-interest/frontend.js?v=0.9.11" defer></script>
 <?php endif; ?>
 </body>
 </html>

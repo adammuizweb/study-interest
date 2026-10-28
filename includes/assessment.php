@@ -85,6 +85,119 @@ function study_interest_effective_answer_map(PDO $pdo, int $sessionId, ?int $rev
     return $answers;
 }
 
+function study_interest_correction_preview(array $configuration, string $algorithmVersion, array $savedAnswers, array $draftAnswers, int $durationSeconds, string $targetProgram, ?array $savedResult = null): array
+{
+    $configurationErrors = study_interest_configuration_errors($configuration);
+    if ($configurationErrors !== []) throw new DomainException(implode(' ', $configurationErrors));
+    $questions = array_values($configuration['questions'] ?? []);
+    $optionCount = array_sum(array_map(static fn(array $question): int => count($question['options'] ?? []), $questions));
+    $scorePasses = max(2, 2 + $optionCount - count($questions));
+    $dimensionCount = max(1, count($configuration['dimensions'] ?? []));
+    $scoreCost = max(1, $optionCount * $dimensionCount
+        + count($configuration['sections'] ?? []) * $dimensionCount
+        + count($configuration['programs'] ?? []) * $dimensionCount);
+    if ($optionCount > 1000 || $scorePasses * $scoreCost > 2000000) {
+        throw new DomainException('This assessment is too large for live correction guidance.');
+    }
+    $program = $configuration['programs'][$targetProgram] ?? null;
+    if (!is_array($program) || (string)($program['recommendation_type'] ?? '') !== 'DIRECT_ENTRY'
+        || isset($program['is_active']) && empty($program['is_active'])) {
+        throw new DomainException('Select a valid target direction.');
+    }
+
+    $programMap = static function (array $result): array {
+        $programs = array_values(array_filter($result['programs'] ?? [], static fn(mixed $item): bool => is_array($item)
+            && (string)($item['recommendation_type'] ?? '') === 'DIRECT_ENTRY'));
+        usort($programs, static fn(array $left, array $right): int => (float)($right['score'] ?? 0) <=> (float)($left['score'] ?? 0)
+            ?: strcmp((string)($left['code'] ?? ''), (string)($right['code'] ?? '')));
+        $mapped = [];
+        foreach ($programs as $index => $item) {
+            $item['guidance_position'] = $index + 1;
+            $mapped[(string)$item['code']] = $item;
+        }
+        return $mapped;
+    };
+    $summary = static function (array $item): array {
+        return [
+            'code' => (string)$item['code'],
+            'label' => (string)$item['label'],
+            'score' => round((float)$item['score'], 3),
+            'position' => (int)$item['guidance_position'],
+            'result_rank' => $item['rank'] === null ? null : (int)$item['rank'],
+            'classification' => (string)$item['classification'],
+            'recommended' => !empty($item['recommended']),
+        ];
+    };
+
+    $score = static fn(array $answers): array => study_interest_score_versioned(
+        $algorithmVersion,
+        $configuration,
+        $answers,
+        $durationSeconds,
+        false
+    );
+    $savedResult ??= $score($savedAnswers);
+    $draftResult = $score($draftAnswers);
+    $savedPrograms = $programMap($savedResult);
+    $draftPrograms = $programMap($draftResult);
+    if (!isset($savedPrograms[$targetProgram], $draftPrograms[$targetProgram])) throw new RuntimeException('Target direction result is unavailable.');
+
+    $programs = [];
+    foreach ($draftPrograms as $code => $item) {
+        $entry = $summary($item);
+        $entry['saved_score'] = round((float)($savedPrograms[$code]['score'] ?? 0), 3);
+        $entry['delta'] = round($entry['score'] - $entry['saved_score'], 3);
+        $programs[] = $entry;
+    }
+
+    $choices = [];
+    $suggestions = [];
+    foreach ($questions as $questionIndex => $question) {
+        $questionCode = (string)($question['code'] ?? '');
+        if ($questionCode === '' || !array_key_exists($questionCode, $draftAnswers)) throw new DomainException('Every answer is required for guidance preview.');
+        $selectedCode = (string)$draftAnswers[$questionCode];
+        foreach ($question['options'] ?? [] as $option) {
+            $optionCode = (string)($option['code'] ?? '');
+            if ($optionCode === '') continue;
+            if ($optionCode === $selectedCode) {
+                $candidatePrograms = $draftPrograms;
+            } else {
+                $candidateAnswers = $draftAnswers;
+                $candidateAnswers[$questionCode] = $optionCode;
+                $candidatePrograms = $programMap($score($candidateAnswers));
+            }
+            $candidate = $candidatePrograms[$targetProgram] ?? null;
+            if (!is_array($candidate)) throw new RuntimeException('Target direction preview is unavailable.');
+            $choice = $summary($candidate);
+            $choice['delta'] = round((float)$candidate['score'] - (float)$draftPrograms[$targetProgram]['score'], 3);
+            $choice['selected'] = $optionCode === $selectedCode;
+            $choices[$questionCode][$optionCode] = $choice;
+            if (!$choice['selected'] && $choice['delta'] > 0) {
+                $suggestions[] = [
+                    'question_code' => $questionCode,
+                    'question_number' => $questionIndex + 1,
+                    'option_code' => $optionCode,
+                    'option_label' => (string)($option['label'] ?? $optionCode),
+                ] + $choice;
+            }
+        }
+    }
+    usort($suggestions, static fn(array $left, array $right): int => (float)$right['delta'] <=> (float)$left['delta']
+        ?: (int)$left['question_number'] <=> (int)$right['question_number']
+        ?: strcmp((string)$left['option_code'], (string)$right['option_code']));
+
+    $target = $summary($draftPrograms[$targetProgram]);
+    $target['saved_score'] = round((float)$savedPrograms[$targetProgram]['score'], 3);
+    $target['delta'] = round($target['score'] - $target['saved_score'], 3);
+    return [
+        'target' => $target,
+        'programs' => $programs,
+        'choices' => $choices,
+        'suggestions' => array_slice($suggestions, 0, 12),
+        'changed_count' => count(array_filter($draftAnswers, static fn(string $answer, string $code): bool => $answer !== (string)($savedAnswers[$code] ?? ''), ARRAY_FILTER_USE_BOTH)),
+    ];
+}
+
 function study_interest_complete(PDO $pdo, array $session): array
 {
     if ((string)$session['status'] === 'completed') {
