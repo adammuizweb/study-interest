@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "title": "Study Interest Explorer",
   "icon": "icon.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
@@ -33,7 +33,7 @@
       "label": "Manage Study Interest Configuration",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.config.view",
@@ -47,7 +47,7 @@
       "label": "Publish Study Interest Configuration",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.results.view",
@@ -68,28 +68,28 @@
       "label": "Manage Study Interest Public Presentation",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.contacts.view",
       "label": "View Study Interest Contact Data",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.contacts.manage",
       "label": "Edit Study Interest Participant Data",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.results.export",
       "label": "Export Study Interest Results",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.sessions.view",
@@ -110,28 +110,28 @@
       "label": "Correct Study Interest Results",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.sessions.delete",
       "label": "Permanently Delete Study Interest Sessions",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.workspace.export",
       "label": "Export Study Interest Operational Data",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     },
     {
       "key": "plugin.study-interest.audit.view",
       "label": "View Study Interest Audit Trail",
       "supports_scope": false,
       "default_roles": ["admin"],
-      "delegable": false
+      "delegable": true
     }
   ],
   "admin": {

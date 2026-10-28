@@ -14,7 +14,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.9', 'plugin version is 0.9.9');
+$check(($manifest['version'] ?? null) === '0.9.10', 'plugin version is 0.9.10');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -65,12 +65,8 @@ foreach ($manifest['permissions'] ?? [] as $permission) $permissions[(string)$pe
 foreach (['dashboard.access', 'config.view', 'config.manage', 'config.publish', 'results.view', 'presentation.view', 'presentation.manage', 'contacts.view', 'contacts.manage', 'results.export', 'sessions.view', 'responses.view', 'results.correct', 'sessions.delete', 'workspace.export', 'audit.view'] as $suffix) {
     $check(isset($permissions['plugin.study-interest.' . $suffix]), 'permission is declared: ' . $suffix);
 }
-$check(($permissions['plugin.study-interest.config.publish']['delegable'] ?? null) === false, 'publishing permission is nondelegable');
-$check(($permissions['plugin.study-interest.contacts.view']['delegable'] ?? null) === false, 'contact permission is separate and nondelegable');
-$check(($permissions['plugin.study-interest.results.correct']['delegable'] ?? null) === false, 'result correction permission is separate and nondelegable');
-$check(($permissions['plugin.study-interest.sessions.delete']['delegable'] ?? null) === false
-    && ($permissions['plugin.study-interest.workspace.export']['delegable'] ?? null) === false, 'destructive and identifiable export permissions are nondelegable');
-$check(($permissions['plugin.study-interest.presentation.manage']['delegable'] ?? null) === false, 'participant result-page management is nondelegable');
+$check(count(array_filter($permissions, static fn(array $permission): bool => ($permission['delegable'] ?? null) === true)) === count($permissions),
+    'all separate Study Interest permissions can be assigned to custom operational roles');
 $routes = [];
 foreach ($manifest['admin']['pages'] ?? [] as $route) $routes[(string)$route['route']] = $route;
 $check(($routes['admin/tools/study-interest/import-baseline']['permission'] ?? null) === 'plugin.study-interest.config.manage', 'import route uses configuration permission');
@@ -109,10 +105,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.9')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.9')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.9')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.9'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.10')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.10')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.10')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.10'), 'plugin assets use the release cache key');
 $check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
     && str_contains($publicLayoutSource, 'property="og:image"')
     && str_contains($publicLayoutSource, 'name="twitter:image"')
