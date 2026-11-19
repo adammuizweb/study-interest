@@ -17,8 +17,8 @@ $params = [];
 if ($status !== '') { $where[] = 's.status=?'; $params[] = $status; }
 if ($q !== '') {
     $needle = '%' . $q . '%';
-    $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ?)";
-    array_push($params, $needle, $needle, $needle, $needle, $needle);
+    $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ? OR s.registration_attributes_json LIKE ?)";
+    array_push($params, $needle, $needle, $needle, $needle, $needle, $needle);
 }
 $whereSql = implode(' AND ', $where);
 $count = $pdo->prepare("SELECT COUNT(*) FROM study_interest_sessions s WHERE {$whereSql}");

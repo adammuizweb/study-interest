@@ -78,6 +78,26 @@ function study_interest_admin_begin_snapshot(PDO $pdo): void
     $pdo->beginTransaction();
 }
 
+function study_interest_admin_top_direction_condition(array $versionSchemas, string $sessionAlias = 's', string $programAlias = 'p'): string
+{
+    $legacyIds = [];
+    $eligibilityIds = [];
+    foreach ($versionSchemas as $versionId => $schemaVersion) {
+        if ((int)$schemaVersion >= 3) $eligibilityIds[] = (int)$versionId;
+        else $legacyIds[] = (int)$versionId;
+    }
+    $conditions = [];
+    if ($legacyIds !== []) {
+        $ids = implode(',', array_unique($legacyIds));
+        $conditions[] = "({$sessionAlias}.version_id IN ({$ids}) AND NOT EXISTS (SELECT 1 FROM study_interest_program_results historical_peer WHERE historical_peer.session_id={$programAlias}.session_id AND historical_peer.recommendation_type='DIRECT_ENTRY' AND (historical_peer.score>{$programAlias}.score OR (historical_peer.score={$programAlias}.score AND historical_peer.program_code<{$programAlias}.program_code))))";
+    }
+    if ($eligibilityIds !== []) {
+        $ids = implode(',', array_unique($eligibilityIds));
+        $conditions[] = "({$sessionAlias}.version_id IN ({$ids}) AND {$programAlias}.is_recommended=1 AND {$programAlias}.rank_position=1 AND {$programAlias}.eligibility_status='ELIGIBLE' AND {$programAlias}.intake_availability='ACCEPTING')";
+    }
+    return "{$programAlias}.recommendation_type='DIRECT_ENTRY' AND (" . ($conditions !== [] ? implode(' OR ', $conditions) : '0=1') . ')';
+}
+
 function study_interest_admin_redirect(string $type, string $message, ?string $location = null): never
 {
     global $studyInterestBase;

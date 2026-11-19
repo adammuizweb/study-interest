@@ -18,22 +18,21 @@ $versionId = $selectedVersion !== null ? (int)$selectedVersion['id'] : 0;
 $summary = ['total' => 0, 'completed' => 0, 'in_progress' => 0];
 $programs = $dimensions = $flags = $recent = [];
 $programLabels = $dimensionLabels = [];
+$versionSchemas = [];
 $selectedTitle = $selectedVersion !== null ? (string)$selectedVersion['test_title'] : __('No assessment version');
 if ($versionId > 0) {
-    $configuration = json_decode((string)$selectedVersion['configuration_json'], true);
-    if (is_array($configuration)) {
-        if (!hash_equals((string)$selectedVersion['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) throw new RuntimeException('Assessment configuration integrity check failed.');
-        foreach ($configuration['programs'] ?? [] as $code => $program) $programLabels[(string)$code] = (string)($program['label'] ?? $code);
-        foreach ($configuration['dimensions'] ?? [] as $code => $dimension) $dimensionLabels[(string)$code] = (string)($dimension['label'] ?? $code);
-        if (trim((string)($configuration['title'] ?? '')) !== '') $selectedTitle = trim((string)$configuration['title']);
-    }
+    $configuration = study_interest_configuration_from_session($selectedVersion);
+    $versionSchemas[$versionId] = (int)($configuration['schema_version'] ?? 1);
+    $topDirectionCondition = study_interest_admin_top_direction_condition($versionSchemas);
+    foreach ($configuration['programs'] ?? [] as $code => $program) $programLabels[(string)$code] = (string)($program['label'] ?? $code);
+    foreach ($configuration['dimensions'] ?? [] as $code => $dimension) $dimensionLabels[(string)$code] = (string)($dimension['label'] ?? $code);
+    if (trim((string)($configuration['title'] ?? '')) !== '') $selectedTitle = trim((string)$configuration['title']);
     $summaryStatement = $pdo->prepare("SELECT COUNT(*) AS total,SUM(status='completed') AS completed,SUM(status='started') AS in_progress FROM study_interest_sessions WHERE version_id=?");
     $summaryStatement->execute([$versionId]);
     $summary = $summaryStatement->fetch(PDO::FETCH_ASSOC) ?: $summary;
     $programStatement = $pdo->prepare("SELECT p.program_code,COUNT(*) AS total,ROUND(AVG(p.score),2) AS average_score
         FROM study_interest_program_results p JOIN study_interest_sessions s ON s.id=p.session_id
-        WHERE s.version_id=? AND p.recommendation_type='DIRECT_ENTRY'
-        AND p.id=(SELECT p2.id FROM study_interest_program_results p2 WHERE p2.session_id=p.session_id AND p2.recommendation_type='DIRECT_ENTRY' ORDER BY p2.score DESC,p2.program_code ASC LIMIT 1)
+        WHERE s.version_id=? AND {$topDirectionCondition}
         GROUP BY p.program_code ORDER BY total DESC,p.program_code ASC");
     $programStatement->execute([$versionId]);
     $programs = $programStatement->fetchAll(PDO::FETCH_ASSOC);
@@ -47,8 +46,8 @@ if ($versionId > 0) {
     $flagStatement->execute([$versionId]);
     $flags = $flagStatement->fetchAll(PDO::FETCH_ASSOC);
     $recentStatement = $pdo->prepare("SELECT s.public_id,s.completed_at_utc,
-        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
-        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
+        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
+        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
         (SELECT COUNT(*) FROM study_interest_result_flags f WHERE f.session_id=s.id) AS flag_count
         FROM study_interest_sessions s WHERE s.version_id=? AND s.status='completed' ORDER BY s.completed_at_utc DESC,s.id DESC LIMIT 10");
     $recentStatement->execute([$versionId]);

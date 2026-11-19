@@ -61,6 +61,14 @@ function study_interest_public_branding_url_error(string $url): ?string
     return null;
 }
 
+function study_interest_public_action_url_error(string $url): ?string
+{
+    if ($url === '') return 'Action URL is required.';
+    return study_interest_public_branding_url_error($url) === null
+        ? null
+        : 'Action URL must be a safe root-relative or HTTPS URL.';
+}
+
 function study_interest_public_branding_is_valid(mixed $value): bool
 {
     if (!is_array($value) || (int)($value['schema'] ?? 0) !== 1

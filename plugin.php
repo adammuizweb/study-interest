@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/configuration.php';
+require_once __DIR__ . '/includes/eligibility.php';
 require_once __DIR__ . '/includes/scoring.php';
 require_once __DIR__ . '/includes/assessment.php';
 require_once __DIR__ . '/includes/export.php';
@@ -42,8 +43,8 @@ function study_interest_is_admin_request(): bool
 function study_interest_admin_assets(): void
 {
     if (!study_interest_is_admin_request()) return;
-    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.9.11">' . PHP_EOL;
-    echo '<script src="/static/plugins/study-interest/admin.js?v=0.9.11" defer></script>' . PHP_EOL;
+    echo '<link rel="stylesheet" href="/static/plugins/study-interest/admin.css?v=0.9.12">' . PHP_EOL;
+    echo '<script src="/static/plugins/study-interest/admin.js?v=0.9.12" defer></script>' . PHP_EOL;
 }
 
 if (function_exists('register_frontend_route')) {

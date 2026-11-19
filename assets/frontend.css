@@ -18,7 +18,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; overflow-x: hidden; background: var(--canvas); color: var(--ink); font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 a { color: inherit; }
 
 .sie-visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -34,46 +34,64 @@ a { color: inherit; }
 .sie-button:disabled { opacity: .38; cursor: not-allowed; }
 
 /* Landing */
-.sie-landing { min-height: 100vh; min-height: 100svh; padding-bottom: 80px; background:
-  linear-gradient(rgba(16, 22, 47, .045) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(16, 22, 47, .045) 1px, transparent 1px), var(--canvas); background-size: 48px 48px; }
-.sie-time-badge { display: inline-flex; align-items: center; gap: 10px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .7); color: var(--muted); font-size: .78rem; font-weight: 800; }
-.sie-landing-grid { width: min(1200px, calc(100% - 64px)); margin: 42px auto 0; display: grid; grid-template-columns: minmax(0, .9fr) minmax(520px, 1.1fr); gap: clamp(48px, 7vw, 100px); align-items: start; }
-.sie-hero { position: sticky; top: 36px; padding-top: 30px; }
-.sie-hero h1 { max-width: 650px; margin: 0; color: var(--navy); font-size: clamp(3.6rem, 6.7vw, 6.8rem); font-weight: 900; line-height: .87; letter-spacing: -.075em; }
-.sie-hero-lead { max-width: 600px; margin: 28px 0 0; color: var(--muted); font-size: clamp(1rem, 1.4vw, 1.22rem); line-height: 1.65; }
-.sie-hero-graphic { position: relative; width: min(390px, 80%); aspect-ratio: 1.65; margin: 38px 0; overflow: hidden; border-radius: 120px 24px 120px 24px; background: var(--navy); color: #fff; box-shadow: var(--shadow); }
-.sie-hero-graphic::after { content: ""; position: absolute; width: 110px; height: 110px; right: -25px; bottom: -30px; border-radius: 50%; background: var(--coral); }
-.sie-hero-graphic strong { position: absolute; z-index: 2; left: 38px; top: 27px; color: var(--lime); font-size: 5.7rem; font-weight: 900; line-height: 1; letter-spacing: -.08em; }
-.sie-hero-graphic small { position: absolute; z-index: 2; left: 48px; bottom: 28px; color: #cbd0e2; font-size: .76rem; font-weight: 750; letter-spacing: .05em; line-height: 1.3; text-transform: uppercase; }
+.sie-landing { min-height: 100vh; min-height: 100svh; padding-bottom: 80px; background: radial-gradient(circle at 7% 12%, rgba(119, 131, 255, .11), transparent 29rem), linear-gradient(135deg, #f8f9f5 0%, #f1f3ed 100%); }
+.sie-landing .sie-site-header { width: min(1240px, calc(100% - 64px)); padding: 30px 0 22px; border-bottom: 1px solid rgba(16, 22, 47, .1); }
+.sie-logo > span:last-child { white-space: nowrap; }
+.sie-time-badge { display: inline-flex; align-items: center; gap: 10px; padding: 8px 13px; border: 1px solid #d5dad3; border-radius: 999px; background: rgba(255, 255, 255, .78); color: var(--muted); font-size: .76rem; font-weight: 800; }
+.sie-landing-grid { width: min(1240px, calc(100% - 64px)); margin: 28px auto 0; display: grid; grid-template-columns: minmax(0, .83fr) minmax(560px, 1.17fr); gap: clamp(48px, 5.5vw, 76px); align-items: start; }
+.sie-hero { position: sticky; top: 28px; padding: 38px 0 24px; }
+.sie-hero h1 { max-width: 590px; margin: 0; color: var(--navy); font-size: clamp(3.5rem, 5.3vw, 5.2rem); font-weight: 900; line-height: .94; letter-spacing: -.064em; }
+.sie-hero-lead { max-width: 530px; margin: 24px 0 0; color: var(--muted); font-size: clamp(1rem, 1.3vw, 1.14rem); line-height: 1.65; }
+.sie-hero-cta { display: inline-flex; align-items: center; gap: 14px; margin-top: 24px; padding: 11px 16px; border: 1px solid var(--navy); border-radius: 10px; background: rgba(255, 255, 255, .6); color: var(--navy); font-size: .8rem; font-weight: 850; text-decoration: none; }
+.sie-hero-cta:hover { background: #fff; }
+.sie-hero-cta:focus-visible { outline: 4px solid var(--violet); outline-offset: 3px; }
+.sie-hero-graphic { position: relative; width: min(470px, 100%); min-height: 176px; margin: 34px 0 26px; overflow: hidden; border-radius: 26px; background: var(--navy); color: #fff; box-shadow: 0 18px 50px rgba(16, 22, 47, .16); }
+.sie-hero-graphic::after { content: ""; position: absolute; width: 120px; height: 120px; right: -32px; bottom: -48px; border-radius: 50%; background: var(--coral); }
+.sie-hero-graphic strong { position: absolute; z-index: 2; left: 30px; top: 22px; color: var(--lime); font-size: 4.8rem; font-weight: 900; line-height: 1; letter-spacing: -.08em; }
+.sie-hero-graphic small { position: absolute; z-index: 2; left: 34px; bottom: 22px; color: #cbd0e2; font-size: .7rem; font-weight: 750; letter-spacing: .08em; line-height: 1.3; text-transform: uppercase; }
 .sie-orbit { position: absolute; border: 1px solid rgba(255, 255, 255, .28); border-radius: 50%; }
 .sie-orbit::after { content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--aqua); }
-.sie-orbit-one { width: 190px; height: 190px; right: 34px; top: 25px; }
+.sie-orbit-one { width: 170px; height: 170px; right: 36px; top: 3px; }
 .sie-orbit-one::after { right: 19px; top: 18px; }
-.sie-orbit-two { width: 125px; height: 125px; right: 66px; top: 57px; }
+.sie-orbit-two { width: 112px; height: 112px; right: 65px; top: 32px; }
 .sie-orbit-two::after { left: -3px; top: 59px; background: var(--lime); }
-.sie-orbit-three { width: 58px; height: 58px; right: 99px; top: 90px; background: var(--violet); border: 0; }
+.sie-orbit-three { width: 52px; height: 52px; right: 95px; top: 62px; background: var(--violet); border: 0; }
 .sie-orbit-three::after { display: none; }
-.sie-feature-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.sie-feature-list li { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
-.sie-feature-list b { color: var(--ink); }
+.sie-feature-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sie-feature-list li { display: grid; align-content: start; gap: 5px; min-height: 108px; padding: 16px; border: 1px solid #d8ddd5; border-radius: 14px; background: rgba(255, 255, 255, .64); color: var(--muted); font-size: .78rem; }
+.sie-feature-list b { color: var(--ink); font-size: .82rem; }
 
-.sie-start-panel { position: relative; padding: clamp(28px, 4vw, 50px); border: 2px solid var(--navy); border-radius: 28px; background: rgba(255, 255, 255, .94); box-shadow: 12px 12px 0 var(--navy); }
-.sie-panel-heading { display: grid; grid-template-columns: 50px 1fr; gap: 18px; align-items: start; margin-bottom: 32px; }
-.sie-panel-heading > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: var(--navy); font-size: .8rem; font-weight: 900; }
+.sie-start-panel { position: relative; overflow: hidden; padding: clamp(30px, 3.2vw, 44px); border: 1px solid #d4d9d2; border-radius: 24px; background: rgba(255, 255, 255, .96); box-shadow: 0 22px 60px rgba(16, 22, 47, .12); }
+.sie-start-panel::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--violet), var(--aqua), var(--lime)); }
+.sie-panel-heading { display: grid; grid-template-columns: 46px 1fr; gap: 16px; align-items: start; margin-bottom: 30px; }
+.sie-panel-heading > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--navy); color: var(--lime); font-size: .76rem; font-weight: 900; }
 .sie-panel-heading h2 { margin: -3px 0 6px; color: var(--navy); font-size: clamp(1.8rem, 3vw, 2.35rem); line-height: 1.05; letter-spacing: -.04em; }
 .sie-panel-heading p:last-child { margin: 0; color: var(--muted); font-size: .9rem; }
 .sie-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .sie-field { display: grid; gap: 8px; min-width: 0; }
 .sie-field-wide { grid-column: 1 / -1; }
-.sie-field > span { color: var(--ink); font-size: .78rem; font-weight: 850; }
+.sie-field > span { color: var(--ink); font-size: .76rem; font-weight: 850; }
 .sie-field > span b { color: var(--coral); }
-.sie-field input { width: 100%; min-height: 50px; padding: 12px 14px; border: 1.5px solid #aeb6ae; border-radius: 11px; background: #fbfcf9; color: var(--ink); outline: 0; transition: border-color .15s, box-shadow .15s, background .15s; }
+.sie-field input:not([type="radio"]), .sie-field select { width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid #b9c1b8; border-radius: 10px; background: #fff; color: var(--ink); outline: 0; transition: border-color .15s, box-shadow .15s, background .15s; }
 .sie-field input::placeholder { color: #8a918a; }
-.sie-field input:hover { border-color: #737d74; }
-.sie-field input:focus { border-color: var(--violet); background: #fff; box-shadow: 0 0 0 4px rgba(119, 131, 255, .18); }
-.sie-field input:invalid:not(:placeholder-shown) { border-color: var(--danger); }
-.sie-contact-block { margin: 30px 0 20px; padding: 24px; border-radius: 18px; background: #f0f1ff; }
+.sie-field input:not([type="radio"]):hover, .sie-field select:hover { border-color: #737d74; }
+.sie-field input:not([type="radio"]):focus, .sie-field select:focus { border-color: var(--violet); background: #fff; box-shadow: 0 0 0 4px rgba(119, 131, 255, .18); }
+.sie-field input:not([type="radio"]):invalid:not(:placeholder-shown) { border-color: var(--danger); }
+.sie-field small { color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.sie-privacy-copy { margin: 18px 0 0; padding: 13px 15px; border-left: 3px solid var(--violet); border-radius: 0 9px 9px 0; background: #f5f6f2; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+.sie-field-privacy { padding-top: 2px; border-top: 1px solid #dfe3dc; font-style: normal; }
+.sie-registration-block { display: grid; gap: 18px; margin: 18px 0 24px; padding: 20px; border: 1px solid #d8ddd5; border-radius: 14px; background: #f8f9f6; }
+.sie-registration-radio { margin: 0; padding: 0; border: 0; }
+.sie-registration-radio legend { padding: 0; color: var(--ink); font-size: .76rem; font-weight: 850; }
+.sie-registration-radio legend b { color: var(--coral); }
+.sie-registration-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sie-registration-options label { min-height: 50px; display: inline-flex; align-items: center; gap: 11px; padding: 10px 13px; border: 1px solid #b9c1b8; border-radius: 10px; background: #fff; color: var(--ink); font-size: .84rem; font-weight: 750; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.sie-registration-options label:hover { border-color: #737d74; }
+.sie-registration-options input[type="radio"] { appearance: none; width: 19px; height: 19px; min-height: 19px; flex: 0 0 19px; margin: 0; padding: 0; border: 2px solid #818a81; border-radius: 50%; background: #fff; box-shadow: none; }
+.sie-registration-options input[type="radio"]:checked { border-color: var(--navy); background: var(--navy); box-shadow: inset 0 0 0 4px #fff; }
+.sie-registration-options label:has(input:checked) { border-color: var(--navy); background: #f0ffd0; box-shadow: 0 0 0 1px var(--navy); }
+.sie-registration-options label:has(input:focus-visible) { outline: 3px solid var(--violet); outline-offset: 2px; }
+.sie-contact-block { margin: 24px 0 18px; padding: 20px; border: 1px solid #dddff5; border-radius: 14px; background: #f6f6ff; }
 .sie-contact-heading { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .sie-contact-heading div { display: flex; align-items: center; gap: 9px; }
 .sie-contact-heading span { font-size: .86rem; font-weight: 900; }
@@ -85,7 +103,7 @@ a { color: inherit; }
 .sie-check span { color: var(--muted); font-size: .82rem; }
 .sie-check b { color: var(--ink); }
 .sie-check:has(input:focus-visible) { outline: 3px solid var(--violet); outline-offset: 5px; border-radius: 4px; }
-.sie-main-consent { padding: 20px; border: 1.5px solid var(--line); border-radius: 16px; background: #fbfcf9; }
+.sie-main-consent { padding: 17px; border: 1px solid #d6dbd4; border-radius: 12px; background: #f8f9f6; }
 .sie-start-actions { display: flex; align-items: center; gap: 18px; margin-top: 24px; }
 .sie-start-actions .sie-button { flex: 0 0 auto; }
 #sie-message { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 700; }
@@ -164,8 +182,9 @@ a { color: inherit; }
 .sie-result-card h3 { margin: 32px 0 auto; font-size: clamp(1.45rem, 2.4vw, 2rem); line-height: 1.06; letter-spacing: -.04em; }
 .sie-result-score { display: flex; align-items: baseline; gap: 4px; margin-top: 28px; }
 .sie-result-score strong { font-size: 2rem; letter-spacing: -.04em; }
-.sie-result-score span, .sie-result-card > p { color: var(--muted); font-size: .8rem; font-weight: 800; }
-.sie-result-card > p { margin: 0; text-transform: uppercase; letter-spacing: .07em; }
+.sie-result-score span, .sie-result-classification { color: var(--muted); font-size: .8rem; font-weight: 800; }
+.sie-result-classification { margin: 0; text-transform: uppercase; letter-spacing: .07em; }
+.sie-result-description { margin: 14px 0 0; color: var(--muted); font-size: .86rem; line-height: 1.45; }
 .sie-empty-result { grid-column: 1 / -1; display: grid; grid-template-columns: 100px 1fr; gap: 30px; align-items: center; padding: clamp(28px, 5vw, 54px); border: 2px solid var(--navy); border-radius: 24px; background: var(--lime); }
 .sie-empty-symbol { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%; background: var(--navy); color: var(--lime); font-size: 4rem; font-weight: 300; line-height: 1; }
 .sie-empty-result h3 { margin: 0 0 10px; color: var(--navy); font-size: clamp(1.8rem, 3vw, 2.6rem); letter-spacing: -.04em; }
@@ -184,12 +203,14 @@ a { color: inherit; }
 .sie-meter { height: 8px; overflow: hidden; border-radius: 99px; background: #313b63; }
 .sie-meter i { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--aqua)); }
 .sie-insight, .sie-pathway { margin-top: 22px; padding: clamp(32px, 5vw, 56px); border: 2px solid var(--navy); border-radius: 26px; background: var(--paper); }
-.sie-insight p:last-child, .sie-pathway p:last-child { max-width: 850px; margin-bottom: 0; color: var(--muted); }
+.sie-insight p:last-child, .sie-pathway-copy, .sie-pathway-description { max-width: 850px; color: var(--muted); }
+.sie-insight p:last-child, .sie-pathway-description:last-child, .sie-pathway-copy:last-child { margin-bottom: 0; }
 .sie-pathway { display: grid; grid-template-columns: 72px 1fr; gap: 28px; }
 .sie-pathway-marker { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 18px; background: var(--coral); color: var(--navy); font-size: 1.35rem; font-weight: 950; }
 .sie-next-steps { margin-top: 72px; padding: clamp(34px, 6vw, 68px); display: grid; grid-template-columns: 1fr 1fr; gap: 34px 70px; border-radius: 30px; background: var(--violet); color: var(--navy); }
 .sie-next-steps .sie-kicker { color: var(--navy); }
 .sie-next-steps > p { margin: 0; }
+.sie-result-actions { display: flex; flex-wrap: wrap; gap: 12px; grid-column: 1 / -1; }
 .sie-button-light { justify-self: start; background: #fff; color: var(--navy); }
 .sie-disclaimer { margin-top: 26px; color: var(--muted); font-size: .76rem; text-align: center; }
 .sie-result-mask { position: relative; width: min(1100px, calc(100% - 64px)); min-height: 360px; display: grid; place-items: center; margin: 34px auto; overflow: hidden; border: 2px solid #aeb5d1; border-radius: 28px; background: #e5e8f2; box-shadow: var(--shadow); isolation: isolate; }
@@ -227,10 +248,11 @@ a { color: inherit; }
 
 @media (max-width: 900px) {
   .sie-site-header { width: min(100% - 36px, 1200px); }
+  .sie-landing .sie-site-header { width: min(100% - 36px, 700px); }
   .sie-landing-grid { width: min(100% - 36px, 700px); grid-template-columns: 1fr; margin-top: 16px; }
   .sie-hero { position: static; padding-top: 20px; }
   .sie-hero h1 { max-width: 720px; }
-  .sie-hero-graphic { width: min(420px, 85%); }
+  .sie-hero-graphic { width: min(470px, 100%); }
   .sie-feature-list { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .sie-feature-list li { grid-template-columns: 1fr; gap: 4px; }
   .sie-assessment-header { grid-template-columns: 1fr minmax(280px, 380px); }
@@ -243,23 +265,42 @@ a { color: inherit; }
 
 @media (max-width: 640px) {
   .sie-site-header { padding: 18px 0; }
-  .sie-time-badge { gap: 6px; padding: 6px 9px; font-size: .67rem; }
-  .sie-landing { padding-bottom: 42px; }
-  .sie-landing-grid { gap: 34px; }
-  .sie-hero h1 { font-size: clamp(3.2rem, 17vw, 4.8rem); }
-  .sie-hero-lead { margin-top: 22px; }
-  .sie-hero-graphic { width: 100%; margin: 28px 0; }
-  .sie-hero-graphic strong { font-size: 4.7rem; }
-  .sie-feature-list { grid-template-columns: 1fr; }
-  .sie-feature-list li { grid-template-columns: 135px 1fr; }
-  .sie-start-panel { padding: 24px 20px; border-radius: 21px; box-shadow: 7px 7px 0 var(--navy); }
+  .sie-landing .sie-site-header { width: calc(100% - 32px); padding: 17px 0 14px; }
+  .sie-logo { gap: 8px; font-size: .8rem; }
+  .sie-logo-image { height: 27px; max-width: 72px; }
+  .sie-time-badge { max-width: 145px; justify-content: center; gap: 6px; padding: 6px 9px; font-size: .64rem; line-height: 1.3; text-align: center; }
+  .sie-landing { padding-bottom: 36px; }
+  .sie-landing-grid { width: calc(100% - 28px); margin-top: 8px; gap: 24px; }
+  .sie-hero { padding: 18px 2px 0; }
+  .sie-hero .sie-kicker { margin-bottom: 8px; font-size: .65rem; }
+  .sie-hero h1 { font-size: clamp(2.85rem, 13.2vw, 3.45rem); line-height: .94; letter-spacing: -.058em; }
+  .sie-hero-lead { margin-top: 16px; font-size: .94rem; line-height: 1.55; }
+  .sie-hero-cta { margin-top: 18px; }
+  .sie-hero-graphic { width: 100%; min-height: 108px; margin: 22px 0 14px; border-radius: 18px; }
+  .sie-hero-graphic::after { width: 82px; height: 82px; right: -22px; bottom: -35px; }
+  .sie-hero-graphic strong { left: 21px; top: 15px; font-size: 3.15rem; }
+  .sie-hero-graphic small { left: 23px; bottom: 13px; font-size: .58rem; }
+  .sie-orbit-one { width: 100px; height: 100px; right: 29px; top: 4px; }
+  .sie-orbit-two { width: 66px; height: 66px; right: 46px; top: 21px; }
+  .sie-orbit-three { width: 30px; height: 30px; right: 64px; top: 39px; }
+  .sie-feature-list { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sie-feature-list li { min-height: 102px; grid-template-columns: 1fr; gap: 4px; padding: 13px; font-size: .71rem; line-height: 1.45; }
+  .sie-feature-list b { font-size: .76rem; }
+  .sie-start-panel { padding: 26px 18px 22px; border-radius: 20px; box-shadow: 0 14px 40px rgba(16, 22, 47, .12); scroll-margin-top: 12px; }
   .sie-panel-heading { grid-template-columns: 38px 1fr; gap: 12px; }
-  .sie-panel-heading > span { width: 34px; height: 34px; }
+  .sie-panel-heading > span { width: 34px; height: 34px; border-radius: 9px; }
+  .sie-panel-heading h2 { font-size: 1.75rem; }
   .sie-fields { grid-template-columns: 1fr; gap: 14px; }
   .sie-field-wide { grid-column: auto; }
-  .sie-contact-block { margin: 24px -6px 18px; padding: 18px; }
+  .sie-privacy-copy { margin-top: 15px; padding: 12px 13px; }
+  .sie-registration-block { margin: 15px 0 18px; padding: 15px; }
+  .sie-registration-options { gap: 8px; }
+  .sie-registration-options label { min-height: 48px; padding: 9px 10px; font-size: .8rem; }
+  .sie-field-privacy { font-size: .68rem; }
+  .sie-contact-block { margin: 18px 0 16px; padding: 16px; }
   .sie-contact-heading { display: block; }
   .sie-contact-heading p { max-width: none; margin-top: 8px; text-align: left; }
+  .sie-main-consent { padding: 15px; }
   .sie-start-actions { align-items: stretch; flex-direction: column; }
   .sie-start-actions .sie-button { width: 100%; }
   #sie-message { min-height: 1.2em; }

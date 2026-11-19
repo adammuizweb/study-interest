@@ -9,15 +9,11 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.11` adds frozen-version answer-impact guidance to the controlled
-result-correction workspace, including target-direction comparisons and bounded
-single-answer alternatives. It allows Site Owners to grant each separate Study
-Interest permission to purpose-built custom roles. It publishes the validated Core favicon
-and social-sharing metadata for public assessment links. It uses English for built-in participant interface copy while
-leaving assessment-authored content in its configured language. The landing
-badge shows only the question count and no longer presents timing copy. It also
-provides a generic schema-v2 assessment builder with a neutral 18-question
-English starter and a blank starting point.
+Version `0.9.12` adds generic schema-v3 registration attributes, immutable
+eligibility-policy evidence, intake availability, and the full-precision frozen
+`weighted-choice-2.1` scorer. The neutral 18-question English starter uses
+schema v3 with registration and policies disabled. Historical schema-v1,
+schema-v2, `baseline-1.0`, and `weighted-choice-2.0` results remain supported.
 Dashboard authors can create and remove sections, dimensions, and study directions; edit questions,
 answer scoring, direction weights, thresholds, classifications, interpretation
 rules, participant intake fields, consent and privacy copy, all primary
@@ -40,8 +36,14 @@ activity log, and audited filtered CSV or Excel exports. A separate anonymous
 result export excludes contact data. Admins can edit submitted answers through
 controlled corrections that recalculate against the original immutable version;
 every correction creates a numbered snapshot revision with a mandatory reason
-and activity event. Result views always surface the closest study directions,
-even when no direction passes the configured dominant-recommendation threshold.
+and activity event. Schema-v3 result views use frozen effective recommendations;
+historical schema-v1/v2 views retain their original raw highest-direct behavior.
+Eligibility policies support only the generic `DIRECT_RECOMMENDATION` and
+`PROFESSIONAL_PATHWAY` application-surface codes, each bound to the matching
+program recommendation type.
+Schema-v3 programs may include optional participant-facing descriptions. The
+normalized program table does not own that field; the immutable configuration
+hash protects it and `weighted-choice-2.1` freezes it into result snapshots.
 An audited Result page policy can expose the complete result, show a safe
 blurred preview with a managed-access notice, or hide it. When the complete page
 is enabled, each result section can independently be shown, safely blurred, or

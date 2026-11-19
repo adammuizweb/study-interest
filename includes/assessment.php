@@ -29,8 +29,13 @@ function study_interest_materialize_result(PDO $pdo, int $sessionId, array $resu
     $pdo->prepare('DELETE FROM study_interest_dimension_results WHERE session_id=?')->execute([$sessionId]);
     $dimensionInsert = $pdo->prepare('INSERT INTO study_interest_dimension_results (session_id,dimension_code,section_scores_json,final_score) VALUES (?,?,?,?)');
     foreach ($result['dimensions'] as $dimension) $dimensionInsert->execute([$sessionId, $dimension['code'], json_encode($dimension['section_scores'], JSON_THROW_ON_ERROR), $dimension['score']]);
-    $programInsert = $pdo->prepare('INSERT INTO study_interest_program_results (session_id,program_code,score,rank_position,classification,recommendation_type,is_recommended) VALUES (?,?,?,?,?,?,?)');
-    foreach ($result['programs'] as $program) $programInsert->execute([$sessionId, $program['code'], $program['score'], $program['rank'], $program['classification'], $program['recommendation_type'], $program['recommended'] ? 1 : 0]);
+    $programInsert = $pdo->prepare('INSERT INTO study_interest_program_results (session_id,program_code,score,rank_position,pre_eligibility_rank,eligibility_status,intake_availability,policy_codes_json,policy_hashes_json,reason_codes_json,classification,recommendation_type,is_recommended) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    foreach ($result['programs'] as $program) $programInsert->execute([
+        $sessionId, $program['code'], $program['score'], $program['rank'], $program['pre_eligibility_rank'] ?? null,
+        $program['eligibility_status'] ?? 'ELIGIBLE', $program['intake_availability'] ?? 'ACCEPTING',
+        json_encode($program['policy_codes'] ?? [], JSON_THROW_ON_ERROR), json_encode($program['policy_hashes'] ?? [], JSON_THROW_ON_ERROR), json_encode($program['reason_codes'] ?? [], JSON_THROW_ON_ERROR),
+        $program['classification'], $program['recommendation_type'], $program['recommended'] ? 1 : 0,
+    ]);
     $flagInsert = $pdo->prepare('INSERT INTO study_interest_result_flags (session_id,flag_code,severity,context_json) VALUES (?,?,?,?)');
     foreach ($result['flags'] as $flag) $flagInsert->execute([$sessionId, $flag['code'], $flag['severity'], json_encode($flag['context'], JSON_THROW_ON_ERROR)]);
 }
@@ -48,18 +53,29 @@ function study_interest_result_revision_hash(int $sessionId, int $revisionNumber
     ]));
 }
 
-function study_interest_snapshot_matches_result(array $snapshot, array $result): bool
+function study_interest_snapshot_registration_hash_matches(array $snapshot, ?string $registrationAttributesHash): bool
 {
-    foreach (['dimensions', 'programs', 'recommendations', 'professional_pathways', 'interpretations', 'profile_clarity', 'flags', 'duration_seconds'] as $key) {
+    if ((int)($snapshot['schema'] ?? 1) < 2) return true;
+    $snapshotHash = (string)($snapshot['registration_attributes_hash'] ?? '');
+    return preg_match('/\A[a-f0-9]{64}\z/', (string)$registrationAttributesHash) === 1
+        && preg_match('/\A[a-f0-9]{64}\z/', $snapshotHash) === 1
+        && hash_equals((string)$registrationAttributesHash, $snapshotHash);
+}
+
+function study_interest_snapshot_matches_result(array $snapshot, array $result, ?string $registrationAttributesHash = null): bool
+{
+    $keys = ['dimensions', 'programs', 'recommendations', 'professional_pathways', 'interpretations', 'profile_clarity', 'flags', 'duration_seconds'];
+    if ((int)($snapshot['schema'] ?? 1) >= 2) $keys[] = 'eligibility_evidence';
+    foreach ($keys as $key) {
         if (!array_key_exists($key, $snapshot) || !array_key_exists($key, $result)) return false;
         if (study_interest_configuration_json(['value' => $snapshot[$key]]) !== study_interest_configuration_json(['value' => $result[$key]])) return false;
     }
-    return true;
+    return study_interest_snapshot_registration_hash_matches($snapshot, $registrationAttributesHash);
 }
 
 function study_interest_effective_answer_map(PDO $pdo, int $sessionId, ?int $revisionNumber = null): array
 {
-    $sessionStatement = $pdo->prepare('SELECT s.public_id,s.result_revision,s.result_snapshot_json,v.configuration_hash FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.id=? LIMIT 1');
+    $sessionStatement = $pdo->prepare('SELECT s.public_id,s.result_revision,s.result_snapshot_json,s.registration_attributes_hash,v.configuration_hash FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.id=? LIMIT 1');
     $sessionStatement->execute([$sessionId]);
     $session = $sessionStatement->fetch(PDO::FETCH_ASSOC);
     if (!is_array($session)) throw new RuntimeException('Assessment session is unavailable.');
@@ -76,7 +92,8 @@ function study_interest_effective_answer_map(PDO $pdo, int $sessionId, ?int $rev
     $expectedHash = study_interest_result_revision_hash($sessionId, $revisionNumber, (string)$row['answers_json'], (string)$row['snapshot_json'], (string)$row['reason'], $row['created_by'] !== null ? (int)$row['created_by'] : null, (string)$row['created_at_utc']);
     if (!hash_equals((string)$row['revision_hash'], $expectedHash)) throw new RuntimeException('Effective result revision integrity check failed.');
     $snapshot = json_decode((string)$row['snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
-    if (!is_array($snapshot) || (string)($snapshot['session_public_id'] ?? '') !== (string)$session['public_id'] || (int)($snapshot['result_revision'] ?? 0) !== $revisionNumber || !hash_equals((string)$session['configuration_hash'], (string)($snapshot['configuration_hash'] ?? ''))) throw new RuntimeException('Effective result revision identity is invalid.');
+    if (!is_array($snapshot) || (string)($snapshot['session_public_id'] ?? '') !== (string)$session['public_id'] || (int)($snapshot['result_revision'] ?? 0) !== $revisionNumber || !hash_equals((string)$session['configuration_hash'], (string)($snapshot['configuration_hash'] ?? ''))
+        || !study_interest_snapshot_registration_hash_matches($snapshot, isset($session['registration_attributes_hash']) ? (string)$session['registration_attributes_hash'] : null)) throw new RuntimeException('Effective result revision identity is invalid.');
     if ($revisionNumber === (int)$session['result_revision'] && !hash_equals((string)$session['result_snapshot_json'], (string)$row['snapshot_json'])) throw new RuntimeException('Effective result revision does not match the session snapshot.');
     $answers = json_decode((string)$row['answers_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($answers)) throw new RuntimeException('Effective result answers are invalid.');
@@ -85,9 +102,9 @@ function study_interest_effective_answer_map(PDO $pdo, int $sessionId, ?int $rev
     return $answers;
 }
 
-function study_interest_correction_preview(array $configuration, string $algorithmVersion, array $savedAnswers, array $draftAnswers, int $durationSeconds, string $targetProgram, ?array $savedResult = null): array
+function study_interest_correction_preview(array $configuration, string $algorithmVersion, array $savedAnswers, array $draftAnswers, int $durationSeconds, string $targetProgram, ?array $savedResult = null, array $registrationAttributes = [], ?string $eligibilityDate = null): array
 {
-    $configurationErrors = study_interest_configuration_errors($configuration);
+    $configurationErrors = study_interest_runtime_configuration_errors($configuration);
     if ($configurationErrors !== []) throw new DomainException(implode(' ', $configurationErrors));
     $questions = array_values($configuration['questions'] ?? []);
     $optionCount = array_sum(array_map(static fn(array $question): int => count($question['options'] ?? []), $questions));
@@ -107,7 +124,9 @@ function study_interest_correction_preview(array $configuration, string $algorit
 
     $programMap = static function (array $result): array {
         $programs = array_values(array_filter($result['programs'] ?? [], static fn(mixed $item): bool => is_array($item)
-            && (string)($item['recommendation_type'] ?? '') === 'DIRECT_ENTRY'));
+            && (string)($item['recommendation_type'] ?? '') === 'DIRECT_ENTRY'
+            && (string)($item['eligibility_status'] ?? 'ELIGIBLE') === 'ELIGIBLE'
+            && (string)($item['intake_availability'] ?? 'ACCEPTING') === 'ACCEPTING'));
         usort($programs, static fn(array $left, array $right): int => (float)($right['score'] ?? 0) <=> (float)($left['score'] ?? 0)
             ?: strcmp((string)($left['code'] ?? ''), (string)($right['code'] ?? '')));
         $mapped = [];
@@ -134,7 +153,9 @@ function study_interest_correction_preview(array $configuration, string $algorit
         $configuration,
         $answers,
         $durationSeconds,
-        false
+        false,
+        $registrationAttributes,
+        $eligibilityDate
     );
     $savedResult ??= $score($savedAnswers);
     $draftResult = $score($draftAnswers);
@@ -207,12 +228,14 @@ function study_interest_complete(PDO $pdo, array $session): array
     }
     if ((string)$session['status'] !== 'started') throw new DomainException('This assessment cannot be completed.');
     $configuration = study_interest_configuration_from_session($session);
+    $registrationAttributes = study_interest_registration_attributes_from_session($session, $configuration);
     $answers = study_interest_answer_map($pdo, (int)$session['id']);
     $started = new DateTimeImmutable((string)$session['started_at_utc'], new DateTimeZone('UTC'));
     $duration = max(0, time() - $started->getTimestamp());
-    $result = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $answers, $duration);
+    $result = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $answers, $duration, true, $registrationAttributes, (string)$session['started_at_utc']);
+    $schemaVersion = (int)($configuration['schema_version'] ?? 1);
     $snapshot = [
-        'schema' => 1,
+        'schema' => $schemaVersion >= 3 ? 2 : 1,
         'session_public_id' => (string)$session['public_id'],
         'version_code' => (string)$session['version_code'],
         'algorithm_version' => (string)$session['algorithm_version'],
@@ -220,6 +243,7 @@ function study_interest_complete(PDO $pdo, array $session): array
         'completed_at_utc' => study_interest_now_utc(),
         'result_text' => $configuration['result_text'] ?? [],
     ] + $result;
+    if ($schemaVersion >= 3) $snapshot['registration_attributes_hash'] = (string)$session['registration_attributes_hash'];
     $snapshotJson = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
 
     study_interest_materialize_result($pdo, (int)$session['id'], $result);

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/helpers.php';
 require_once __DIR__ . '/../../includes/configuration.php';
+require_once __DIR__ . '/../../includes/eligibility.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') study_interest_json(['ok' => false, 'error' => 'Method not allowed'], 405);
 study_interest_require_csrf();
 if (!study_interest_rate_limit($pdo, 'start', 3600, 20)) study_interest_json(['ok' => false, 'error' => 'Too many attempts. Please try again later.'], 429);
@@ -35,13 +36,18 @@ try {
         $contact = ['name' => $name, 'school' => $school, 'class_level' => $classLevel];
         if ($contactConsent) { $contact['email'] = $email; $contact['phone'] = $phone; }
     }
+    $registrationAttributes = (int)($configuration['schema_version'] ?? 1) >= 3
+        ? study_interest_registration_attributes_from_input(is_array($input['registration_attributes'] ?? null) ? $input['registration_attributes'] : [], $configuration)
+        : [];
 } catch (DomainException $error) {
     study_interest_json(['ok' => false, 'error' => $error->getMessage()], 422);
 }
 $publicId = study_interest_uuid();
 $token = bin2hex(random_bytes(32));
 $now = study_interest_now_utc();
-$stmt = $pdo->prepare('INSERT INTO study_interest_sessions (public_id,test_id,version_id,token_hash,consent_at_utc,contact_consent_at_utc,started_at_utc,last_activity_at_utc,contact_json) VALUES (:public,:test,:version,:token,:consent,:contact_consent,:started,:activity,:contact)');
+$registrationJson = (int)($configuration['schema_version'] ?? 1) >= 3 ? study_interest_registration_attributes_json($registrationAttributes) : null;
+$registrationHash = $registrationJson !== null ? hash('sha256', $registrationJson) : null;
+$stmt = $pdo->prepare('INSERT INTO study_interest_sessions (public_id,test_id,version_id,token_hash,consent_at_utc,contact_consent_at_utc,started_at_utc,last_activity_at_utc,contact_json,registration_attributes_json,registration_attributes_hash) VALUES (:public,:test,:version,:token,:consent,:contact_consent,:started,:activity,:contact,:registration,:registration_hash)');
 $stmt->execute([
     ':public' => $publicId,
     ':test' => (int)$version['test_id'],
@@ -52,6 +58,8 @@ $stmt->execute([
     ':started' => $now,
     ':activity' => $now,
     ':contact' => json_encode($contact, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ':registration' => $registrationJson,
+    ':registration_hash' => $registrationHash,
 ]);
 setcookie(study_interest_session_cookie_name($publicId), $token, ['expires' => time() + 86400 * 30, 'path' => '/study-interest', 'secure' => study_interest_cookie_secure(), 'httponly' => true, 'samesite' => 'Lax']);
 study_interest_json(['ok' => true, 'session' => ['public_id' => $publicId, 'version_code' => (string)$version['version_code']]]);

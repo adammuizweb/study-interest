@@ -20,6 +20,7 @@
     const start = document.querySelector('#sie-start');
     const message = document.querySelector('#sie-message');
     const fields = Array.from(document.querySelectorAll('[data-sie-intake]'));
+    const registrationFields = Array.from(document.querySelectorAll('[data-sie-registration]'));
     const contactConsent = document.querySelector('#sie-contact-consent');
     if (!form || !consent || !start || !message) return;
     let submitting = false;
@@ -27,9 +28,10 @@
       if (submitting) return;
       const hasContact = fields.some((field) => ['email', 'phone'].includes(field.dataset.sieIntake) && field.value.trim());
       start.disabled = !consent.checked || fields.some((field) => !field.validity.valid)
+        || registrationFields.some((field) => !field.validity.valid)
         || (hasContact && (!contactConsent || !contactConsent.checked));
     };
-    [consent, ...fields, contactConsent].filter(Boolean).forEach((field) => field.addEventListener('input', updateStart));
+    [consent, ...fields, ...registrationFields, contactConsent].filter(Boolean).forEach((field) => field.addEventListener('input', updateStart));
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (submitting || start.disabled) return;
@@ -38,9 +40,13 @@
         consent: true,
         version_id: data.versionId,
         configuration_hash: data.configurationHash,
-        contact_consent: contactConsent ? contactConsent.checked : false
+        contact_consent: contactConsent ? contactConsent.checked : false,
+        registration_attributes: {}
       };
       fields.forEach((field) => { payload[field.dataset.sieIntake] = field.value.trim(); });
+      registrationFields.forEach((field) => {
+        if (field.value && (field.type !== 'radio' || field.checked)) payload.registration_attributes[field.dataset.sieRegistration] = field.value;
+      });
       submitting = true;
       Array.from(form.elements).forEach((field) => { field.disabled = true; });
       message.dataset.state = 'loading';

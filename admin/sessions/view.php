@@ -17,10 +17,11 @@ $canManageContacts = study_interest_admin_can('plugin.study-interest.contacts.ma
 $canDelete = study_interest_admin_can('plugin.study-interest.sessions.delete');
 $canCorrect = $canViewResponses && $canViewResults && study_interest_admin_can('plugin.study-interest.results.correct');
 $contactColumn = $canViewContacts ? 's.contact_json' : 'NULL AS contact_json';
+$registrationColumns = $canViewContacts ? 's.registration_attributes_json,s.registration_attributes_hash' : 'NULL AS registration_attributes_json,s.registration_attributes_hash';
 $snapshotColumn = $canViewResults ? 's.result_snapshot_json,s.result_revision,s.result_updated_by,s.result_updated_at_utc' : 'NULL AS result_snapshot_json,0 AS result_revision,NULL AS result_updated_by,NULL AS result_updated_at_utc';
 
 study_interest_admin_begin_snapshot($pdo);
-$statement = $pdo->prepare("SELECT s.id,s.public_id,s.test_id,s.version_id,s.status,s.consent_at_utc,s.contact_consent_at_utc,s.started_at_utc,s.completed_at_utc,s.last_activity_at_utc,{$snapshotColumn},{$contactColumn},v.version_code,v.algorithm_version,v.configuration_hash,v.configuration_json,v.expected_question_count,t.title AS test_title
+$statement = $pdo->prepare("SELECT s.id,s.public_id,s.test_id,s.version_id,s.status,s.consent_at_utc,s.contact_consent_at_utc,s.started_at_utc,s.completed_at_utc,s.last_activity_at_utc,{$snapshotColumn},{$contactColumn},{$registrationColumns},v.version_code,v.algorithm_version,v.configuration_hash,v.configuration_json,v.expected_question_count,t.title AS test_title
     FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id JOIN study_interest_tests t ON t.id=s.test_id WHERE s.public_id=? LIMIT 1");
 $statement->execute([$publicId]);
 $session = $statement->fetch(PDO::FETCH_ASSOC);
@@ -31,7 +32,9 @@ if (!is_array($session)) {
     return;
 }
 $configuration = study_interest_configuration_from_session($session);
+$canCorrect = $canCorrect && (!study_interest_has_eligibility_policies($configuration) || $canViewContacts);
 $contact = $canViewContacts ? study_interest_admin_contact((string)($session['contact_json'] ?? '')) : [];
+$registrationAttributes = $canViewContacts ? study_interest_registration_attributes_from_session($session, $configuration) : [];
 $answers = $canViewResponses ? study_interest_effective_answer_map($pdo, (int)$session['id'], $canViewResults ? (int)$session['result_revision'] : null) : [];
 $answerCountStatement = $pdo->prepare('SELECT COUNT(*) FROM study_interest_answers WHERE session_id=?');
 $answerCountStatement->execute([(int)$session['id']]);
@@ -41,7 +44,7 @@ if ($canViewResults) {
     $dimensionStatement = $pdo->prepare('SELECT * FROM study_interest_dimension_results WHERE session_id=? ORDER BY final_score DESC,dimension_code');
     $dimensionStatement->execute([(int)$session['id']]);
     $dimensions = $dimensionStatement->fetchAll(PDO::FETCH_ASSOC);
-    $programStatement = $pdo->prepare('SELECT * FROM study_interest_program_results WHERE session_id=? ORDER BY is_recommended DESC,rank_position IS NULL,rank_position,score DESC');
+    $programStatement = $pdo->prepare('SELECT * FROM study_interest_program_results WHERE session_id=? ORDER BY is_recommended DESC,rank_position IS NULL,rank_position,pre_eligibility_rank,score DESC');
     $programStatement->execute([(int)$session['id']]);
     $programs = $programStatement->fetchAll(PDO::FETCH_ASSOC);
     $flagStatement = $pdo->prepare('SELECT * FROM study_interest_result_flags WHERE session_id=? ORDER BY severity DESC,flag_code');
@@ -60,7 +63,8 @@ if ($canViewAudit) {
             || !is_array($revisionSnapshot)
             || (string)($revisionSnapshot['session_public_id'] ?? '') !== $publicId
             || (int)($revisionSnapshot['result_revision'] ?? 0) !== (int)$revision['revision_number']
-            || !hash_equals((string)$session['configuration_hash'], (string)($revisionSnapshot['configuration_hash'] ?? ''))) {
+            || !hash_equals((string)$session['configuration_hash'], (string)($revisionSnapshot['configuration_hash'] ?? ''))
+            || !study_interest_snapshot_registration_hash_matches($revisionSnapshot, isset($session['registration_attributes_hash']) ? (string)$session['registration_attributes_hash'] : null)) {
             throw new RuntimeException('Result revision history integrity check failed.');
         }
     }
@@ -72,7 +76,11 @@ foreach ($configuration['programs'] ?? [] as $code => $meta) $programLabels[(str
 $leadingProgram = null;
 foreach ($programs as $program) {
     if ((string)$program['recommendation_type'] !== 'DIRECT_ENTRY') continue;
-    if ($leadingProgram === null || (float)$program['score'] > (float)$leadingProgram['score'] || ((float)$program['score'] === (float)$leadingProgram['score'] && strcmp((string)$program['program_code'], (string)$leadingProgram['program_code']) < 0)) $leadingProgram = $program;
+    if ((int)($configuration['schema_version'] ?? 1) >= 3
+        && ((int)$program['is_recommended'] !== 1 || (int)$program['rank_position'] !== 1
+            || (string)$program['eligibility_status'] !== 'ELIGIBLE' || (string)$program['intake_availability'] !== 'ACCEPTING')) continue;
+    if ($leadingProgram === null || (float)$program['score'] > (float)$leadingProgram['score']
+        || ((float)$program['score'] === (float)$leadingProgram['score'] && (string)$program['program_code'] < (string)$leadingProgram['program_code'])) $leadingProgram = $program;
 }
 $snapshot = $canViewResults ? json_decode((string)($session['result_snapshot_json'] ?? ''), true) : [];
 if (!is_array($snapshot)) $snapshot = [];
@@ -108,7 +116,7 @@ $flagLabels = ['STRAIGHTLINING' => __('Repeated answer pattern'), 'FAST_COMPLETI
       </div></section>
     <?php endif; ?>
   </div><aside class="sie-session-side">
-    <?php if ($canViewContacts): ?><section class="sie-editor-panel"><span class="sie-admin-eyebrow"><?= study_interest_h(__('Participant snapshot')) ?></span><dl class="sie-meta-list"><div><dt><?= study_interest_h(__('Name')) ?></dt><dd><?= study_interest_h((string)($contact['name'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('School')) ?></dt><dd><?= study_interest_h((string)($contact['school'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Class / stage')) ?></dt><dd><?= study_interest_h((string)($contact['class_level'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Email')) ?></dt><dd><?= study_interest_h((string)($contact['email'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Phone')) ?></dt><dd><?= study_interest_h((string)($contact['phone'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Contact consent')) ?></dt><dd><?= $session['contact_consent_at_utc'] ? study_interest_h(__('Granted')) : study_interest_h(__('Not granted')) ?></dd></div></dl></section><?php endif; ?>
+    <?php if ($canViewContacts): ?><section class="sie-editor-panel"><span class="sie-admin-eyebrow"><?= study_interest_h(__('Participant snapshot')) ?></span><dl class="sie-meta-list"><div><dt><?= study_interest_h(__('Name')) ?></dt><dd><?= study_interest_h((string)($contact['name'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('School')) ?></dt><dd><?= study_interest_h((string)($contact['school'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Class / stage')) ?></dt><dd><?= study_interest_h((string)($contact['class_level'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Email')) ?></dt><dd><?= study_interest_h((string)($contact['email'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Phone')) ?></dt><dd><?= study_interest_h((string)($contact['phone'] ?? '—')) ?></dd></div><div><dt><?= study_interest_h(__('Contact consent')) ?></dt><dd><?= $session['contact_consent_at_utc'] ? study_interest_h(__('Granted')) : study_interest_h(__('Not granted')) ?></dd></div><?php foreach (study_interest_registration_attribute_definitions($configuration) as $code => $definition): ?><?php $value = (string)($registrationAttributes[$code] ?? ''); $label = '—'; foreach ($definition['options'] ?? [] as $option) if ((string)($option['code'] ?? '') === $value) { $label = (string)($option['label'] ?? $value); break; } ?><div><dt><?= study_interest_h((string)$definition['label']) ?></dt><dd><?= study_interest_h($label) ?></dd></div><?php endforeach; ?></dl></section><?php endif; ?>
     <section class="sie-editor-panel"><span class="sie-admin-eyebrow"><?= study_interest_h(__('Timeline')) ?></span><dl class="sie-meta-list"><div><dt><?= study_interest_h(__('Started')) ?></dt><dd><?= study_interest_h(study_interest_admin_datetime((string)$session['started_at_utc'])) ?></dd></div><div><dt><?= study_interest_h(__('Completed')) ?></dt><dd><?= study_interest_h(study_interest_admin_datetime($session['completed_at_utc'] !== null ? (string)$session['completed_at_utc'] : null)) ?></dd></div><div><dt><?= study_interest_h(__('Last participant activity')) ?></dt><dd><?= study_interest_h(study_interest_admin_datetime((string)$session['last_activity_at_utc'])) ?></dd></div><?php if ($canViewResults): ?><div><dt><?= study_interest_h(__('Result updated')) ?></dt><dd><?= study_interest_h(study_interest_admin_datetime($session['result_updated_at_utc'] !== null ? (string)$session['result_updated_at_utc'] : null)) ?></dd></div><?php endif; ?></dl></section>
     <?php if ($canViewResults): ?><section class="sie-editor-panel"><span class="sie-admin-eyebrow"><?= study_interest_h(__('Quality signals')) ?></span><?php if ($flags === []): ?><p class="sie-panel-note"><?= study_interest_h(__('No quality flags recorded.')) ?></p><?php else: ?><div class="sie-flag-list"><?php foreach ($flags as $flag): ?><div><span class="sie-severity is-<?= study_interest_h(strtolower((string)$flag['severity'])) ?>"><?= study_interest_h((string)$flag['severity']) ?></span><b><?= study_interest_h($flagLabels[(string)$flag['flag_code']] ?? (string)$flag['flag_code']) ?></b></div><?php endforeach; ?></div><?php endif; ?></section><?php endif; ?>
     <?php if ($revisions !== []): ?><section class="sie-editor-panel"><span class="sie-admin-eyebrow"><?= study_interest_h(__('Revision history')) ?></span><div class="sie-revision-list"><?php foreach ($revisions as $revision): ?><article><div><b><?= study_interest_h(sprintf(__('Revision %d'), (int)$revision['revision_number'])) ?></b><small><?= study_interest_h(study_interest_admin_datetime((string)$revision['created_at_utc'])) ?></small></div><p><?= study_interest_h((string)$revision['reason']) ?></p><code><?= study_interest_h(substr((string)$revision['revision_hash'], 0, 12)) ?>&hellip;</code></article><?php endforeach; ?></div></section><?php endif; ?>

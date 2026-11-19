@@ -21,13 +21,24 @@ try {
     $targetProgram = trim((string)($_POST['target_program'] ?? ''));
     $rawAnswers = is_array($_POST['answers'] ?? null) ? $_POST['answers'] : [];
 
-    $statement = $pdo->prepare('SELECT s.id,s.public_id,s.status,s.result_revision,s.result_snapshot_json,v.algorithm_version,v.configuration_hash,v.configuration_json FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.public_id=? LIMIT 1');
+    $statement = $pdo->prepare('SELECT s.id,s.public_id,s.status,s.result_revision,s.result_snapshot_json,s.started_at_utc,s.registration_attributes_hash,v.algorithm_version,v.configuration_hash,v.configuration_json FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.public_id=? LIMIT 1');
     $statement->execute([$publicId]);
     $session = $statement->fetch(PDO::FETCH_ASSOC);
     if (!is_array($session) || (string)$session['status'] !== 'completed') throw new DomainException('Completed session was not found.');
     if ((int)$session['result_revision'] !== (int)$expectedRevision) throw new DomainException('This result changed while the correction form was open. Reload the latest revision.');
 
     $configuration = study_interest_configuration_from_session($session);
+    $registrationAttributes = [];
+    if (study_interest_has_eligibility_policies($configuration)) {
+        adiwira_require_permission($pdo, 'plugin.study-interest.contacts.view', true);
+        $registrationStatement = $pdo->prepare('SELECT registration_attributes_json FROM study_interest_sessions WHERE id=? LIMIT 1');
+        $registrationStatement->execute([(int)$session['id']]);
+        $registrationJson = $registrationStatement->fetchColumn();
+        if (!is_string($registrationJson)) throw new RuntimeException('Session registration attributes are unavailable.');
+        $session['registration_attributes_json'] = $registrationJson;
+        $registrationAttributes = study_interest_registration_attributes_from_session($session, $configuration);
+    }
+    $eligibilityDate = (string)$session['started_at_utc'];
     $savedAnswers = study_interest_effective_answer_map($pdo, (int)$session['id'], (int)$session['result_revision']);
     $draftAnswers = [];
     foreach ($configuration['questions'] ?? [] as $question) {
@@ -45,8 +56,8 @@ try {
     $snapshot = json_decode((string)$session['result_snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($snapshot)) throw new RuntimeException('Current result snapshot is invalid.');
     $duration = max(0, (int)($snapshot['duration_seconds'] ?? 0));
-    $savedResult = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $savedAnswers, $duration);
-    if (!study_interest_snapshot_matches_result($snapshot, $savedResult)) throw new RuntimeException('Current answers do not reproduce the stored result.');
+    $savedResult = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $savedAnswers, $duration, true, $registrationAttributes, $eligibilityDate);
+    if (!study_interest_snapshot_matches_result($snapshot, $savedResult, (string)($session['registration_attributes_hash'] ?? ''))) throw new RuntimeException('Current answers do not reproduce the stored result.');
 
     $preview = study_interest_correction_preview(
         $configuration,
@@ -55,7 +66,9 @@ try {
         $draftAnswers,
         $duration,
         $targetProgram,
-        $savedResult
+        $savedResult,
+        $registrationAttributes,
+        $eligibilityDate
     );
     $revisionCheck = $pdo->prepare('SELECT status,result_revision FROM study_interest_sessions WHERE id=? LIMIT 1');
     $revisionCheck->execute([(int)$session['id']]);

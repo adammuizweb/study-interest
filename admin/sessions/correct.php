@@ -13,19 +13,26 @@ $statement = $pdo->prepare("SELECT s.id,s.public_id,s.status,s.result_revision,s
 $statement->execute([$publicId]); $session = $statement->fetch(PDO::FETCH_ASSOC);
 if (!is_array($session) || (string)$session['status'] !== 'completed') { http_response_code(404); echo study_interest_h(__('Completed session not found.')); return; }
 $configuration = study_interest_configuration_from_session($session);
+$usesEligibility = study_interest_has_eligibility_policies($configuration);
+if ($usesEligibility) adiwira_require_permission($pdo, 'plugin.study-interest.contacts.view', false);
 $answers = study_interest_effective_answer_map($pdo, (int)$session['id'], (int)$session['result_revision']);
 $contact = $canViewContacts ? study_interest_admin_contact((string)($session['contact_json'] ?? '')) : [];
 $canViewGuidance = study_interest_admin_can('plugin.study-interest.config.view');
 $guidancePrograms = [];
 $guidanceTarget = '';
 if ($canViewGuidance) {
+    $snapshot = json_decode((string)($session['result_snapshot_json'] ?? ''), true);
+    $eligiblePrograms = [];
+    foreach (is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [] as $program) {
+        if (is_array($program) && (string)($program['eligibility_status'] ?? 'ELIGIBLE') === 'ELIGIBLE'
+            && (string)($program['intake_availability'] ?? 'ACCEPTING') === 'ACCEPTING') $eligiblePrograms[(string)($program['code'] ?? '')] = true;
+    }
     foreach ($configuration['programs'] ?? [] as $code => $program) {
         if (!is_array($program) || (string)($program['recommendation_type'] ?? '') !== 'DIRECT_ENTRY'
-            || isset($program['is_active']) && empty($program['is_active'])) continue;
+            || isset($program['is_active']) && empty($program['is_active']) || !isset($eligiblePrograms[(string)$code])) continue;
         $guidancePrograms[(string)$code] = (string)($program['label'] ?? $code);
     }
-    $snapshot = json_decode((string)($session['result_snapshot_json'] ?? ''), true);
-    foreach (is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [] as $program) {
+    foreach (is_array($snapshot['recommendations'] ?? null) ? $snapshot['recommendations'] : [] as $program) {
         $code = is_array($program) ? (string)($program['code'] ?? '') : '';
         if (isset($guidancePrograms[$code])) { $guidanceTarget = $code; break; }
     }

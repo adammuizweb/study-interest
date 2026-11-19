@@ -27,6 +27,7 @@ try {
     $configuration = json_decode((string)$version['configuration_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($configuration) || !hash_equals((string)$version['configuration_hash'], hash('sha256', study_interest_configuration_json($configuration)))) throw new RuntimeException('Assessment configuration integrity check failed.');
     $generic = (int)($configuration['schema_version'] ?? 1) >= 2;
+    $schemaV3 = (int)($configuration['schema_version'] ?? 1) >= 3;
     $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255);
     $description = mb_substr(trim((string)($_POST['description'] ?? '')), 0, 2000);
     if ($title === '') throw new DomainException('Assessment title is required.');
@@ -38,7 +39,7 @@ try {
         $configuration['locale'] = $locale;
     }
 
-    $resultTextLimits = $generic ? study_interest_generic_result_text_keys() : [
+    $resultTextLimits = $generic ? study_interest_generic_result_text_keys((int)($configuration['schema_version'] ?? 2)) : [
         'score_name' => 255,
         'no_dominant_title' => 255,
         'no_dominant_body' => 2000,
@@ -67,6 +68,23 @@ try {
             $value = trim((string)($postedPublicCopy[$key] ?? ''));
             if ($value === '' || mb_strlen($value) > 1000) throw new DomainException("Public interface copy {$key} is invalid.");
             $publicCopy[$key] = $value;
+        }
+        if ($schemaV3) {
+            $durationEstimate = trim((string)($postedPublicCopy['duration_estimate'] ?? ''));
+            if (mb_strlen($durationEstimate) > 100 || preg_match('//u', $durationEstimate) !== 1 || preg_match('/[\x00-\x1F\x7F]/', $durationEstimate) === 1) throw new DomainException('Public duration estimate is invalid.');
+            $publicCopy['duration_estimate'] = $durationEstimate;
+            $resultActions = [];
+            foreach (is_array($_POST['result_actions'] ?? null) ? $_POST['result_actions'] : [] as $action) {
+                if (!is_array($action)) throw new DomainException('Every result action must be a link.');
+                $label = trim((string)($action['label'] ?? ''));
+                $url = trim((string)($action['url'] ?? ''));
+                if ($label === '' && $url === '') continue;
+                if (mb_strlen($label) > 120 || preg_match('//u', $label) !== 1 || preg_match('/[\x00-\x1F\x7F]/', $label) === 1
+                    || study_interest_public_action_url_error($url) !== null) throw new DomainException('A result action is invalid.');
+                $resultActions[] = ['label' => $label, 'url' => $url];
+            }
+            if (count($resultActions) > 6) throw new DomainException('No more than six result actions may be configured.');
+            $configuration['result_actions'] = $resultActions;
         }
         $configuration['public_copy'] = $publicCopy;
         $postedIntake = is_array($_POST['intake'] ?? null) ? $_POST['intake'] : [];

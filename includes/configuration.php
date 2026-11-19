@@ -13,6 +13,18 @@ function study_interest_configuration_json(array $configuration): string
     return json_encode($configuration, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
 }
 
+function study_interest_date_is_valid(string $value): bool
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
+    return $date instanceof DateTimeImmutable && $date->format('Y-m-d') === $value;
+}
+
+function study_interest_utc_timestamp_is_valid(string $value): bool
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z', $value, new DateTimeZone('UTC'));
+    return $date instanceof DateTimeImmutable && $date->format('Y-m-d\TH:i:s\Z') === $value;
+}
+
 function study_interest_blank_configuration(): array
 {
     $configuration = study_interest_baseline_configuration();
@@ -30,7 +42,7 @@ function study_interest_blank_configuration(): array
 
 function study_interest_supported_algorithm_versions(): array
 {
-    return ['baseline-1.0', 'weighted-choice-2.0'];
+    return ['baseline-1.0', 'weighted-choice-2.0', 'weighted-choice-2.1'];
 }
 
 function study_interest_legacy_configuration_errors(array $configuration): array
@@ -136,9 +148,9 @@ function study_interest_legacy_configuration_errors(array $configuration): array
     return array_values(array_unique($errors));
 }
 
-function study_interest_generic_result_text_keys(): array
+function study_interest_generic_result_text_keys(int $schemaVersion = 3): array
 {
-    return [
+    $keys = [
         'score_name' => 255, 'no_dominant_title' => 255, 'no_dominant_body' => 2000, 'multidisciplinary' => 2000,
         'very_clear' => 1000, 'fairly_clear' => 1000, 'open_profile' => 1000, 'professional_pathway' => 255,
         'professional_pathway_body' => 2000, 'disclaimer' => 2000, 'hero_kicker' => 255, 'hero_title' => 500,
@@ -147,6 +159,8 @@ function study_interest_generic_result_text_keys(): array
         'interpretation_title' => 500, 'next_steps_kicker' => 255, 'next_steps_title' => 500,
         'next_steps_body' => 2000, 'start_over_label' => 255,
     ];
+    if ($schemaVersion >= 3) $keys = ['single_dominant' => 1000] + $keys;
+    return $keys;
 }
 
 function study_interest_intake_field_defaults(): array
@@ -187,13 +201,17 @@ function study_interest_contact_from_input(array $input, array $configuration, b
     return $contact;
 }
 
-function study_interest_generic_configuration_errors(array $configuration, bool $forPublication): array
+function study_interest_generic_configuration_errors(array $configuration, bool $forPublication, bool $requireCurrentPolicies = true): array
 {
     $errors = [];
     foreach (['code', 'version', 'algorithm_version'] as $key) {
         if (preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', (string)($configuration[$key] ?? '')) !== 1) $errors[] = "Configuration {$key} is invalid.";
     }
-    if ((int)($configuration['schema_version'] ?? 0) !== 2 || (string)($configuration['algorithm_version'] ?? '') !== 'weighted-choice-2.0') $errors[] = 'Generic configuration identity is invalid.';
+    $schemaVersion = (int)($configuration['schema_version'] ?? 0);
+    $algorithmVersion = (string)($configuration['algorithm_version'] ?? '');
+    if (!in_array($schemaVersion, [2, 3], true)
+        || ($schemaVersion === 2 && $algorithmVersion !== 'weighted-choice-2.0')
+        || ($schemaVersion === 3 && $algorithmVersion !== 'weighted-choice-2.1')) $errors[] = 'Generic configuration identity is invalid.';
     $title = trim((string)($configuration['title'] ?? ''));
     $description = trim((string)($configuration['description'] ?? ''));
     if ($title === '' || mb_strlen($title) > 255) $errors[] = 'Configuration title is required and must not exceed 255 characters.';
@@ -215,6 +233,10 @@ function study_interest_generic_configuration_errors(array $configuration, bool 
     }
     $questionCodes = [];
     $measured = array_fill_keys(array_keys($dimensions), false);
+    $measuredBySection = [];
+    foreach (array_keys($sections) as $sectionCode) $measuredBySection[$sectionCode] = array_fill_keys(array_keys($dimensions), false);
+    $qualityLikertCount = 0;
+    $qualityDimensionKinds = [];
     foreach ($questions as $question) {
         if (!is_array($question)) { $errors[] = 'Every question must be an object.'; continue; }
         $code = trim((string)($question['code'] ?? ''));
@@ -238,20 +260,58 @@ function study_interest_generic_configuration_errors(array $configuration, bool 
         }
         foreach (array_keys($dimensions) as $dimension) {
             $values = array_map(static fn(array $option): float => (float)($option['scores'][$dimension] ?? 0), $options);
-            if ($values !== [] && max($values) > min($values)) $measured[$dimension] = true;
+            if ($values !== [] && max($values) > min($values)) {
+                $measured[$dimension] = true;
+                if (isset($measuredBySection[$section][$dimension])) $measuredBySection[$section][$dimension] = true;
+            }
+        }
+        if ($schemaVersion >= 3 && (string)($question['type'] ?? '') === 'likert') {
+            $orderedOptions = $options;
+            $comparable = count($orderedOptions) >= 2;
+            foreach ($orderedOptions as $option) {
+                $optionCode = is_array($option) ? (string)($option['code'] ?? '') : '';
+                if ($optionCode === '' || !is_numeric($optionCode) || !is_finite((float)$optionCode)) { $comparable = false; break; }
+            }
+            if ($comparable) {
+                usort($orderedOptions, static fn(array $left, array $right): int => (float)$left['code'] <=> (float)$right['code']);
+                $orderedCodes = array_map(static fn(array $option): float => (float)$option['code'], $orderedOptions);
+                if (count(array_unique($orderedCodes, SORT_REGULAR)) !== count($orderedCodes)) $comparable = false;
+            }
+            if ($comparable) {
+                $reverse = !empty($question['is_reverse']);
+                foreach (array_keys($dimensions) as $dimension) {
+                    $values = array_map(static fn(array $option): float => (float)($option['scores'][$dimension] ?? 0), $orderedOptions);
+                    if (max($values) <= min($values)) continue;
+                    for ($index = 1; $index < count($values); $index++) {
+                        if ((!$reverse && $values[$index] < $values[$index - 1]) || ($reverse && $values[$index] > $values[$index - 1])) {
+                            $errors[] = "Likert question {$code} scoring must follow its reverse setting for dimension {$dimension}.";
+                            break;
+                        }
+                    }
+                }
+                $primaryDimension = (string)($question['dimension'] ?? '');
+                if (isset($dimensions[$primaryDimension])) {
+                    $qualityLikertCount++;
+                    $qualityDimensionKinds[$primaryDimension][$reverse ? 'reverse' : 'normal'] = true;
+                }
+            }
         }
     }
     $hasDirect = false;
     foreach ($programs as $code => $program) {
         if (preg_match('/\A[a-z0-9][a-z0-9_-]{0,39}\z/i', (string)$code) !== 1 || !is_array($program) || trim((string)($program['label'] ?? '')) === '') $errors[] = "Study direction {$code} is invalid.";
         if (!in_array((string)($program['recommendation_type'] ?? ''), ['DIRECT_ENTRY', 'PROFESSIONAL_PATHWAY'], true)) $errors[] = "Study direction {$code} type is invalid.";
+        if ($schemaVersion >= 3 && array_key_exists('description', $program)
+            && (!is_string($program['description']) || mb_strlen($program['description']) > 2000 || preg_match('//u', $program['description']) !== 1
+                || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $program['description']) === 1)) $errors[] = "Study direction {$code} description is invalid.";
         $weights = is_array($program['weights'] ?? null) ? $program['weights'] : [];
         foreach ($weights as $dimension => $weight) if (!isset($dimensions[$dimension]) || !is_numeric($weight) || !is_finite((float)$weight) || (float)$weight < 0 || (float)$weight > 1) $errors[] = "Study direction {$code} has an invalid weight.";
         if (($program['recommendation_type'] ?? '') === 'DIRECT_ENTRY') $hasDirect = true;
+        if ($schemaVersion >= 3 && !in_array((string)($program['intake_availability'] ?? ''), ['ACCEPTING', 'CLOSED', 'NOT_ACCEPTING'], true)) $errors[] = "Study direction {$code} intake availability is invalid.";
         if ($forPublication && (array_diff(array_keys($dimensions), array_keys($weights)) !== [] || abs(array_sum(array_map('floatval', $weights)) - 1.0) > 0.00001)) $errors[] = "Study direction {$code} weights must cover every dimension and total 100%.";
     }
 
-    foreach (study_interest_generic_result_text_keys() as $key => $maximum) {
+    foreach (study_interest_generic_result_text_keys($schemaVersion) as $key => $maximum) {
         $value = $configuration['result_text'][$key] ?? null;
         if (!is_string($value) || trim($value) === '' || mb_strlen($value) > $maximum) $errors[] = "Result message {$key} is invalid.";
     }
@@ -272,6 +332,39 @@ function study_interest_generic_configuration_errors(array $configuration, bool 
     foreach (['landing_kicker', 'question_count_suffix', 'feature_two_title', 'feature_two_body', 'feature_three_title', 'feature_three_body', 'progress_label', 'back_label', 'next_label', 'complete_label', 'ready_label', 'saving_label', 'saved_label', 'save_error', 'preparing_label', 'start_label'] as $key) {
         if (!is_string($publicCopy[$key] ?? null) || trim((string)$publicCopy[$key]) === '' || mb_strlen((string)$publicCopy[$key]) > 1000) $errors[] = "Public interface copy {$key} is invalid.";
     }
+    if ($schemaVersion >= 3) {
+        $durationEstimate = $publicCopy['duration_estimate'] ?? '';
+        if (!is_string($durationEstimate) || mb_strlen($durationEstimate) > 100 || preg_match('//u', $durationEstimate) !== 1
+            || preg_match('/[\x00-\x1F\x7F]/', $durationEstimate) === 1) $errors[] = 'Public duration estimate is invalid.';
+        $resultActionsValue = $configuration['result_actions'] ?? [];
+        $resultActions = is_array($resultActionsValue) ? array_values($resultActionsValue) : null;
+        if ($resultActions === null || count($resultActions) > 6) {
+            $errors[] = 'Result actions must be a list of no more than six links.';
+        } else {
+            foreach ($resultActions as $action) {
+                $label = is_array($action) ? ($action['label'] ?? null) : null;
+                $url = is_array($action) ? ($action['url'] ?? null) : null;
+                if (!is_string($label) || trim($label) === '' || mb_strlen($label) > 120 || preg_match('//u', $label) !== 1
+                    || preg_match('/[\x00-\x1F\x7F]/', $label) === 1 || !is_string($url) || study_interest_public_action_url_error($url) !== null) {
+                    $errors[] = 'A result action is invalid.';
+                }
+            }
+        }
+        $responseQuality = is_array($configuration['thresholds']['response_quality'] ?? null) ? $configuration['thresholds']['response_quality'] : [];
+        if (array_key_exists('fast_completion_below_seconds', $responseQuality)
+            && filter_var($responseQuality['fast_completion_below_seconds'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 86400]]) === false) {
+            $errors[] = 'Fast-completion threshold is invalid.';
+        }
+        if (array_key_exists('straightlining_same_answers_minimum', $responseQuality)
+            && ($qualityLikertCount < 1 || filter_var($responseQuality['straightlining_same_answers_minimum'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => $qualityLikertCount]]) === false)) {
+            $errors[] = 'Straightlining threshold is invalid.';
+        }
+        $comparableDimensions = count(array_filter($qualityDimensionKinds, static fn(array $kinds): bool => !empty($kinds['normal']) && !empty($kinds['reverse'])));
+        if (array_key_exists('low_response_consistency_dimensions_minimum', $responseQuality)
+            && ($comparableDimensions < 1 || filter_var($responseQuality['low_response_consistency_dimensions_minimum'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => $comparableDimensions]]) === false)) {
+            $errors[] = 'Response-consistency threshold is invalid.';
+        }
+    }
     $interpretationCodes = [];
     foreach (is_array($configuration['interpretation_rules'] ?? null) ? $configuration['interpretation_rules'] : [] as $rule) {
         $ruleCodes = is_array($rule['when_all_directions'] ?? null) ? $rule['when_all_directions'] : [];
@@ -281,11 +374,119 @@ function study_interest_generic_configuration_errors(array $configuration, bool 
         foreach ($ruleCodes as $programCode) if (!isset($programs[(string)$programCode])) $errors[] = 'An interpretation rule references an unknown direction.';
     }
 
+    if ($schemaVersion >= 3) {
+        $registrationAttributes = is_array($configuration['registration_attributes'] ?? null) ? $configuration['registration_attributes'] : [];
+        if (count($registrationAttributes) > 20) $errors[] = 'No more than 20 registration attributes may be configured.';
+        foreach ($registrationAttributes as $attributeCode => $attribute) {
+            if (preg_match('/\A[a-z0-9][a-z0-9_-]{0,39}\z/', (string)$attributeCode) !== 1 || !is_array($attribute)) {
+                $errors[] = "Registration attribute {$attributeCode} is invalid.";
+                continue;
+            }
+            if (!is_string($attribute['label'] ?? null) || trim((string)$attribute['label']) === '' || mb_strlen((string)$attribute['label']) > 255) $errors[] = "Registration attribute {$attributeCode} label is invalid.";
+            if (array_key_exists('control', $attribute)
+                && (!is_string($attribute['control']) || !in_array($attribute['control'], ['select', 'radio'], true))) {
+                $errors[] = "Registration attribute {$attributeCode} control is invalid.";
+            }
+            if (array_key_exists('required', $attribute) && !is_bool($attribute['required'])) $errors[] = "Registration attribute {$attributeCode} required flag is invalid.";
+            foreach (['help', 'privacy'] as $copyKey) {
+                if (!is_string($attribute[$copyKey] ?? null) || ($copyKey === 'privacy' && trim((string)$attribute[$copyKey]) === '') || mb_strlen((string)$attribute[$copyKey]) > 1000) $errors[] = "Registration attribute {$attributeCode} {$copyKey} copy is invalid.";
+            }
+            $options = is_array($attribute['options'] ?? null) ? array_values($attribute['options']) : [];
+            if (count($options) < 2 || count($options) > 100) $errors[] = "Registration attribute {$attributeCode} must define between 2 and 100 options.";
+            $optionCodes = [];
+            foreach ($options as $option) {
+                $optionCode = is_array($option) ? (string)($option['code'] ?? '') : '';
+                if (preg_match('/\A[a-z0-9][a-z0-9_-]{0,39}\z/i', $optionCode) !== 1 || isset($optionCodes[$optionCode])
+                    || !is_string($option['label'] ?? null) || trim((string)$option['label']) === '' || mb_strlen((string)$option['label']) > 255
+                    || isset($option['is_undisclosed']) && !is_bool($option['is_undisclosed'])) $errors[] = "Registration attribute {$attributeCode} options are invalid.";
+                $optionCodes[$optionCode] = true;
+            }
+        }
+
+        $policies = is_array($configuration['eligibility_policies'] ?? null) ? array_values($configuration['eligibility_policies']) : [];
+        if (count($policies) > 100) $errors[] = 'No more than 100 eligibility policies may be configured.';
+        $targetIntakeValue = $configuration['target_intake'] ?? '';
+        $targetIntake = is_string($targetIntakeValue) ? $targetIntakeValue : '';
+        if (!is_string($targetIntakeValue) || ($targetIntake !== '' && preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', $targetIntake) !== 1)) $errors[] = 'Configured target intake is invalid.';
+        $allowIncompletePolicyMetadata = $forPublication && !$requireCurrentPolicies;
+        $policyCodes = [];
+        foreach ($policies as $policy) {
+            if (!is_array($policy)) { $errors[] = 'Every eligibility policy must be an object.'; continue; }
+            $policyCode = (string)($policy['code'] ?? '');
+            foreach (['code', 'application_surface', 'attribute', 'status'] as $key) {
+                if (!array_key_exists($key, $policy) || !is_string($policy[$key]) || mb_strlen($policy[$key]) > 255) $errors[] = "Eligibility policy {$policyCode} metadata {$key} is invalid.";
+            }
+            foreach (['official_version', 'target_intake', 'effective_from', 'effective_until', 'source_document_id', 'approved_by', 'approved_at'] as $key) {
+                if (array_key_exists($key, $policy) && (!is_string($policy[$key]) || mb_strlen($policy[$key]) > 255
+                    || preg_match('//u', $policy[$key]) !== 1 || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $policy[$key]) === 1)) $errors[] = "Eligibility policy {$policyCode} metadata {$key} is invalid.";
+            }
+            if (preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', $policyCode) !== 1 || isset($policyCodes[$policyCode])) $errors[] = 'Eligibility policy codes must be valid and unique.';
+            $policyCodes[$policyCode] = true;
+            $status = (string)($policy['status'] ?? '');
+            $requiresOfficialMetadata = in_array($status, ['published', 'retired'], true) && !$allowIncompletePolicyMetadata;
+            foreach (['application_surface', 'attribute'] as $key) if (trim((string)($policy[$key] ?? '')) === '') $errors[] = "Eligibility policy {$policyCode} metadata {$key} is required.";
+            foreach (['official_version', 'target_intake', 'source_document_id'] as $key) {
+                $value = (string)($policy[$key] ?? '');
+                if ($requiresOfficialMetadata && trim($value) === '') $errors[] = "Eligibility policy {$policyCode} metadata {$key} is required.";
+                if ($value !== '' && preg_match('/\A[a-z0-9][a-z0-9._-]{0,79}\z/i', $value) !== 1) $errors[] = "Eligibility policy {$policyCode} metadata {$key} must use a bounded generic code.";
+            }
+            $applicationSurface = (string)($policy['application_surface'] ?? '');
+            $surfaceType = study_interest_application_surfaces()[$applicationSurface] ?? null;
+            if ($surfaceType === null) $errors[] = "Eligibility policy {$policyCode} application surface is unsupported.";
+            $policyTargetIntake = (string)($policy['target_intake'] ?? '');
+            if ($policyTargetIntake !== '' && ($targetIntake !== '' || !$allowIncompletePolicyMetadata) && $policyTargetIntake !== $targetIntake) $errors[] = "Eligibility policy {$policyCode} target intake does not match the configuration.";
+            if (!isset($registrationAttributes[(string)($policy['attribute'] ?? '')])) $errors[] = "Eligibility policy {$policyCode} references an unknown registration attribute.";
+            if (!in_array($status, ['draft', 'published', 'retired'], true)) $errors[] = "Eligibility policy {$policyCode} status is invalid.";
+            $affected = is_array($policy['affected_program_codes'] ?? null) ? array_values($policy['affected_program_codes']) : [];
+            if ($affected === [] || count($affected) > 100 || count(array_unique(array_map('strval', $affected))) !== count($affected)) $errors[] = "Eligibility policy {$policyCode} affected program codes are invalid.";
+            foreach ($affected as $programCode) {
+                $program = $programs[(string)$programCode] ?? null;
+                if (!is_array($program)) $errors[] = "Eligibility policy {$policyCode} references an unknown study direction.";
+                elseif ($surfaceType !== null && (string)($program['recommendation_type'] ?? '') !== $surfaceType) $errors[] = "Eligibility policy {$policyCode} application surface does not match every affected study direction.";
+            }
+            $decisionMap = is_array($policy['decision_map'] ?? null) ? $policy['decision_map'] : null;
+            $allowedValues = is_array($policy['allowed_values'] ?? null) ? array_values($policy['allowed_values']) : null;
+            if (($decisionMap === null) === ($allowedValues === null) || $decisionMap === [] || $allowedValues === []) $errors[] = "Eligibility policy {$policyCode} must define exactly one non-empty decision map or allowed-values list.";
+            $configuredOptions = [];
+            foreach ($registrationAttributes[(string)($policy['attribute'] ?? '')]['options'] ?? [] as $option) if (is_array($option)) $configuredOptions[] = (string)($option['code'] ?? '');
+            if (is_array($decisionMap)) foreach ($decisionMap as $value => $status) {
+                if (!in_array((string)$value, $configuredOptions, true) || !in_array((string)$status, ['ELIGIBLE', 'INELIGIBLE', 'NEEDS_REVIEW'], true)) $errors[] = "Eligibility policy {$policyCode} decision map is invalid.";
+            }
+            if (is_array($allowedValues) && (count(array_unique(array_map('strval', $allowedValues))) !== count($allowedValues) || array_diff(array_map('strval', $allowedValues), $configuredOptions) !== [])) $errors[] = "Eligibility policy {$policyCode} allowed values are invalid.";
+            $reasonCodes = is_array($policy['reason_codes'] ?? null) ? $policy['reason_codes'] : [];
+            foreach (['ELIGIBLE', 'INELIGIBLE', 'NEEDS_REVIEW'] as $status) if (preg_match('/\A[A-Z0-9][A-Z0-9_-]{0,79}\z/', (string)($reasonCodes[$status] ?? '')) !== 1) $errors[] = "Eligibility policy {$policyCode} reason codes are invalid.";
+            $effectiveFrom = (string)($policy['effective_from'] ?? '');
+            $effectiveUntil = (string)($policy['effective_until'] ?? '');
+            $effectiveFromValid = $effectiveFrom !== '' && study_interest_date_is_valid($effectiveFrom);
+            $effectiveUntilValid = $effectiveUntil !== '' && study_interest_date_is_valid($effectiveUntil);
+            if (($effectiveFrom !== '' && !$effectiveFromValid) || ($effectiveUntil !== '' && !$effectiveUntilValid)
+                || ($effectiveFromValid && $effectiveUntilValid && $effectiveFrom > $effectiveUntil)
+                || (!$allowIncompletePolicyMetadata && ($requiresOfficialMetadata || $effectiveFrom !== '' || $effectiveUntil !== '') && (!$effectiveFromValid || !$effectiveUntilValid))) $errors[] = "Eligibility policy {$policyCode} effective period is invalid.";
+            $approvedBy = (string)($policy['approved_by'] ?? '');
+            $approvedAt = (string)($policy['approved_at'] ?? '');
+            $approvedAtValid = $approvedAt !== '' && study_interest_utc_timestamp_is_valid($approvedAt);
+            $approvalPresent = trim($approvedBy) !== '' && $approvedAtValid;
+            if (($approvedAt !== '' && !$approvedAtValid)
+                || (!$allowIncompletePolicyMetadata && ($requiresOfficialMetadata || trim($approvedBy) !== '' || $approvedAt !== '') && !$approvalPresent)) $errors[] = "Eligibility policy {$policyCode} approval metadata is invalid.";
+            if ($forPublication && $requireCurrentPolicies && ((string)($policy['status'] ?? '') !== 'published' || !$approvalPresent || !study_interest_policy_is_current($policy, $configuration, gmdate('Y-m-d\TH:i:s\Z')))) $errors[] = "Eligibility policy {$policyCode} must be published, approved, and current before publication.";
+        }
+    }
+
     if ($forPublication) {
         if (count($dimensions) < 2) $errors[] = 'At least two dimensions are required.';
         if ($sections === [] || abs(array_sum(array_map(static fn(array $section): float => (float)($section['weight'] ?? 0), $sections)) - 1.0) > 0.00001) $errors[] = 'Section weights must total 100%.';
         if ($questions === []) $errors[] = 'At least one question is required.';
-        foreach ($measured as $dimension => $isMeasured) if (!$isMeasured) $errors[] = "Dimension {$dimension} must have a variable score in at least one question.";
+        foreach ($measured as $dimension => $isMeasured) {
+            if ($schemaVersion >= 3 && isset($dimensions[$dimension]['is_active']) && empty($dimensions[$dimension]['is_active'])) continue;
+            if (!$isMeasured) $errors[] = "Dimension {$dimension} must have a variable score in at least one question.";
+        }
+        if ($schemaVersion >= 3) foreach ($sections as $section => $sectionMeta) {
+            if ((float)($sectionMeta['weight'] ?? 0) <= 0) continue;
+            foreach ($dimensions as $dimension => $dimensionMeta) {
+                if (isset($dimensionMeta['is_active']) && empty($dimensionMeta['is_active'])) continue;
+                if (empty($measuredBySection[$section][$dimension])) $errors[] = "Active dimension {$dimension} must have a variable score in weighted section {$section}.";
+            }
+        }
         if (!$hasDirect) $errors[] = 'At least one primary study direction is required.';
         $ranges = is_array($configuration['thresholds']['classifications'] ?? null) ? $configuration['thresholds']['classifications'] : [];
         if ($ranges === []) $errors[] = 'At least one classification range is required.';
@@ -325,6 +526,13 @@ function study_interest_configuration_errors(array $configuration): array
     return (int)($configuration['schema_version'] ?? 1) >= 2
         ? study_interest_generic_configuration_errors($configuration, true)
         : study_interest_legacy_configuration_errors($configuration);
+}
+
+function study_interest_runtime_configuration_errors(array $configuration): array
+{
+    return (int)($configuration['schema_version'] ?? 1) >= 3
+        ? study_interest_generic_configuration_errors($configuration, true, false)
+        : study_interest_configuration_errors($configuration);
 }
 
 function study_interest_configuration_with_question_counts(array $configuration): array

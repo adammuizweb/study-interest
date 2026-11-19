@@ -77,11 +77,13 @@ try {
         $configuration['programs'][$code] = $existing + ['display_order' => count($configuration['programs'] ?? []) + 1];
         $configuration['programs'][$code]['label'] = $label;
         $configuration['programs'][$code]['recommendation_type'] = $type;
+        $configuration['programs'][$code]['intake_availability'] = (string)($existing['intake_availability'] ?? 'ACCEPTING');
         $configuration['programs'][$code]['is_active'] = true;
         $configuration['programs'][$code]['weights'] = $weights;
     } elseif ($operation === 'program_delete') {
         if (!isset($configuration['programs'][$code])) throw new DomainException('Study direction was not found.');
         foreach ($configuration['interpretation_rules'] ?? [] as $rule) if (in_array($code, $rule['when_all_directions'] ?? [], true)) throw new DomainException('Remove interpretation rules that reference this direction first.');
+        foreach ($configuration['eligibility_policies'] ?? [] as $policy) if (in_array($code, $policy['affected_program_codes'] ?? [], true)) throw new DomainException('Remove eligibility policies that reference this direction first.');
         unset($configuration['programs'][$code]);
     } else {
         throw new DomainException('Structure operation is invalid.');

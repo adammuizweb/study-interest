@@ -58,9 +58,13 @@ if ($publicId !== '' && $session === null) {
         $assessmentTitle = trim((string)($configuration['title'] ?? $session['test_title'] ?? 'Study Interest Explorer')) ?: 'Study Interest Explorer';
         $page_title = $assessmentTitle;
         $page_description = trim((string)($configuration['description'] ?? '')) ?: $page_description;
-        $programs = is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [];
-        $directionLimit = max(1, min(50, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)));
-        $recommendations = study_interest_leading_directions($programs, $directionLimit);
+        $schemaVersion = (int)($configuration['schema_version'] ?? 1);
+        $recommendations = $schemaVersion >= 3
+            ? (is_array($snapshot['recommendations'] ?? null) ? $snapshot['recommendations'] : [])
+            : study_interest_historical_leading_directions(
+                is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [],
+                max(1, min(50, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)))
+            );
         $dimensions = is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [];
         $pathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
         $interpretationItems = is_array($snapshot['interpretations'] ?? null) ? $snapshot['interpretations'] : [];
@@ -70,10 +74,16 @@ if ($publicId !== '' && $session === null) {
         $clarityText = match ($clarity) {
             'PRACTICALLY_EQUAL', 'MULTIDISCIPLINARY' => (string)($snapshot['result_text']['multidisciplinary'] ?? ($legacyConfiguration ? 'Several directions are close together and may be worth exploring side by side.' : '')),
             'VERY_CLEAR' => (string)($snapshot['result_text']['very_clear'] ?? ($legacyConfiguration ? 'Your leading direction is clearly differentiated in this response pattern.' : '')),
-            'FAIRLY_CLEAR', 'SINGLE_DOMINANT' => (string)($snapshot['result_text']['fairly_clear'] ?? ($legacyConfiguration ? 'Your responses provide a useful starting direction for further exploration.' : '')),
+            'FAIRLY_CLEAR' => (string)($snapshot['result_text']['fairly_clear'] ?? ($legacyConfiguration ? 'Your responses provide a useful starting direction for further exploration.' : '')),
+            'SINGLE_DOMINANT' => (string)($snapshot['result_text']['single_dominant'] ?? ($legacyConfiguration ? 'Only one direction met the recommendation criteria; this does not indicate stronger profile clarity.' : '')),
             default => (string)($snapshot['result_text']['open_profile'] ?? ($legacyConfiguration ? 'Your profile remains open across several directions.' : '')),
         };
         $scoreName = (string)($snapshot['result_text']['score_name'] ?? 'Interest alignment index');
+        $resultActions = $schemaVersion >= 3 && is_array($configuration['result_actions'] ?? null)
+            ? array_slice(array_values(array_filter($configuration['result_actions'], static fn(mixed $action): bool => is_array($action)
+                && is_string($action['label'] ?? null) && trim((string)$action['label']) !== '' && mb_strlen((string)$action['label']) <= 120
+                && is_string($action['url'] ?? null) && study_interest_public_action_url_error((string)$action['url']) === null)), 0, 6)
+            : [];
         $sectionState = static fn(string $key): string => (string)($presentation['sections'][$key] ?? 'show');
         $renderMask = static function (string $label, ?string $message = null, bool $page = false) use ($presentation): void {
             $message ??= (string)$presentation['section_mask_message'];
@@ -126,7 +136,8 @@ if ($publicId !== '' && $session === null) {
                                 <span class="sie-rank">0<?= (int)($program['rank'] ?? ($programIndex ?? 0) + 1) ?></span>
                                 <h3><?= study_interest_h($program['label'] ?? '') ?></h3>
                                 <div class="sie-result-score"><strong><?= number_format((float)($program['score'] ?? 0), 1) ?></strong><span>/100</span></div>
-                                <p><?= study_interest_h($program['classification'] ?? '') ?></p>
+                                <p class="sie-result-classification"><?= study_interest_h($program['classification'] ?? '') ?></p>
+                                <?php if ($schemaVersion >= 3 && trim((string)($program['description'] ?? '')) !== ''): ?><p class="sie-result-description"><?= study_interest_h((string)$program['description']) ?></p><?php endif; ?>
                             </article>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -157,13 +168,13 @@ if ($publicId !== '' && $session === null) {
             <?php endif; ?>
 
             <?php if ($sectionState('pathways') === 'show' && $pathways !== []): ?><?php foreach ($pathways as $pathwayIndex => $pathway): ?>
-                <section class="sie-pathway" aria-labelledby="sie-pathway-title-<?= (int)$pathwayIndex ?>"><div class="sie-pathway-marker" aria-hidden="true">P</div><div><p class="sie-kicker"><?= study_interest_h($snapshot['result_text']['professional_pathway'] ?? 'FURTHER PATHWAYS') ?></p><h2 id="sie-pathway-title-<?= (int)$pathwayIndex ?>"><?= study_interest_h($pathway['label'] ?? '') ?></h2><p><?= study_interest_h($snapshot['result_text']['professional_pathway_body'] ?? '') ?></p></div></section>
+                <section class="sie-pathway" aria-labelledby="sie-pathway-title-<?= (int)$pathwayIndex ?>"><div class="sie-pathway-marker" aria-hidden="true">P</div><div><p class="sie-kicker"><?= study_interest_h($snapshot['result_text']['professional_pathway'] ?? 'FURTHER PATHWAYS') ?></p><h2 id="sie-pathway-title-<?= (int)$pathwayIndex ?>"><?= study_interest_h($pathway['label'] ?? '') ?></h2><p class="sie-pathway-copy"><?= study_interest_h($snapshot['result_text']['professional_pathway_body'] ?? '') ?></p><?php if ($schemaVersion >= 3 && trim((string)($pathway['description'] ?? '')) !== ''): ?><p class="sie-pathway-description"><?= study_interest_h((string)$pathway['description']) ?></p><?php endif; ?></div></section>
             <?php endforeach; ?><?php elseif ($sectionState('pathways') === 'mask'): ?><?php $renderMask('Further pathways'); ?><?php endif; ?>
 
             <?php if ($sectionState('next_steps') === 'show'): ?><section class="sie-next-steps" aria-labelledby="sie-next-steps-title">
                  <div><p class="sie-kicker"><?= study_interest_h((string)($snapshot['result_text']['next_steps_kicker'] ?? ($legacyConfiguration ? 'CONTINUE THE CONVERSATION' : 'NEXT STEPS'))) ?></p><h2 id="sie-next-steps-title"><?= study_interest_h((string)($snapshot['result_text']['next_steps_title'] ?? ($legacyConfiguration ? 'Turn this result into further exploration.' : 'Continue exploring'))) ?></h2></div>
                  <p><?= study_interest_h((string)($snapshot['result_text']['next_steps_body'] ?? ($legacyConfiguration ? 'Compare course content, learning activities, and real experiences related to the directions that interest you.' : ''))) ?></p>
-                 <a class="sie-button sie-button-light" href="/study-interest/"><?= study_interest_h((string)($snapshot['result_text']['start_over_label'] ?? ($legacyConfiguration ? 'Start a new exploration' : 'Start again'))) ?> <span aria-hidden="true">&rarr;</span></a>
+                 <div class="sie-result-actions"><?php foreach ($resultActions as $action): ?><a class="sie-button sie-button-light" href="<?= study_interest_h((string)($action['url'] ?? '')) ?>"><?= study_interest_h((string)($action['label'] ?? '')) ?> <span aria-hidden="true">&rarr;</span></a><?php endforeach; ?><a class="sie-button sie-button-light" href="/study-interest/"><?= study_interest_h((string)($snapshot['result_text']['start_over_label'] ?? ($legacyConfiguration ? 'Start a new exploration' : 'Start again'))) ?> <span aria-hidden="true">&rarr;</span></a></div>
             </section><?php elseif ($sectionState('next_steps') === 'mask'): ?><?php $renderMask('Next steps'); ?><?php endif; ?>
             <?php if ($sectionState('disclaimer') === 'show'): ?><p class="sie-disclaimer"><?= study_interest_h($snapshot['result_text']['disclaimer'] ?? '') ?></p><?php elseif ($sectionState('disclaimer') === 'mask'): ?><?php $renderMask('Result note'); ?><?php endif; ?>
             <?php endif; ?>
@@ -265,6 +276,7 @@ if ($publicId !== '' && $session === null) {
     $publicCopy = is_array($publishedConfiguration['public_copy'] ?? null) ? $publishedConfiguration['public_copy'] : [];
     $intake = is_array($publishedConfiguration['intake'] ?? null) ? $publishedConfiguration['intake'] : [];
     $intakeFields = study_interest_intake_fields($publishedConfiguration);
+    $registrationAttributes = study_interest_registration_attribute_definitions($publishedConfiguration);
     $identityFields = array_filter($intakeFields, static fn(array $field, string $key): bool => !in_array($key, ['email', 'phone'], true) && !empty($field['enabled']), ARRAY_FILTER_USE_BOTH);
     $contactFields = array_filter($intakeFields, static fn(array $field, string $key): bool => in_array($key, ['email', 'phone'], true) && !empty($field['enabled']), ARRAY_FILTER_USE_BOTH);
     $assessmentTitle = trim((string)($publishedConfiguration['title'] ?? ''));
@@ -272,6 +284,7 @@ if ($publicId !== '' && $session === null) {
     $assessmentTitle = $assessmentTitle !== '' ? $assessmentTitle : 'Study Interest Explorer';
     $assessmentDescription = $assessmentDescription !== '' ? $assessmentDescription : 'An editable exploration of academic interests and preferred ways of working.';
     $questionCount = is_array($publishedVersion) ? max(0, (int)$publishedVersion['expected_question_count']) : 0;
+    $durationEstimate = $genericPublished && (int)($publishedConfiguration['schema_version'] ?? 1) >= 3 ? trim((string)($publicCopy['duration_estimate'] ?? '')) : '';
     $page_title = $assessmentTitle;
     $page_description = $assessmentDescription;
     ob_start();
@@ -279,13 +292,14 @@ if ($publicId !== '' && $session === null) {
     <main class="sie-landing">
         <header class="sie-site-header">
             <a class="sie-logo" href="/study-interest/"><?php $renderPublicBrand($assessmentTitle); ?></a>
-            <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?></span>
+            <span class="sie-time-badge"><?= $questionCount ?> <?= study_interest_h((string)($publicCopy['question_count_suffix'] ?? 'questions')) ?><?= $durationEstimate !== '' ? ' · ' . study_interest_h($durationEstimate) : '' ?></span>
         </header>
         <div class="sie-landing-grid">
             <section class="sie-hero" aria-labelledby="sie-landing-title">
                 <p class="sie-kicker"><?= study_interest_h((string)($publicCopy['landing_kicker'] ?? 'EXPLORE YOUR INTERESTS')) ?></p>
                 <h1 id="sie-landing-title"><?= study_interest_h($assessmentTitle) ?></h1>
                 <p class="sie-hero-lead"><?= study_interest_h($assessmentDescription) ?></p>
+                <a class="sie-hero-cta" href="#sie-start-form"><?= study_interest_h((string)($publicCopy['start_label'] ?? 'Start')) ?> <span aria-hidden="true">&darr;</span></a>
                 <div class="sie-hero-graphic" aria-hidden="true">
                     <span class="sie-orbit sie-orbit-one"></span><span class="sie-orbit sie-orbit-two"></span><span class="sie-orbit sie-orbit-three"></span>
                      <strong><?= $questionCount ?></strong><small><?= study_interest_h((string)($publicCopy['graphic_label'] ?? $publicCopy['question_count_suffix'] ?? 'questions')) ?></small>
@@ -299,6 +313,17 @@ if ($publicId !== '' && $session === null) {
                     <?php foreach ($identityFields as $key => $field): ?><label class="sie-field<?= $key === 'name' ? ' sie-field-wide' : '' ?>"><span><?= study_interest_h((string)$field['label']) ?><?= !empty($field['required']) ? ' <b>*</b>' : '' ?></span><input data-sie-intake="<?= study_interest_h($key) ?>" type="<?= study_interest_h((string)$field['type']) ?>" maxlength="<?= (int)$field['maximum'] ?>"<?= !empty($field['required']) ? ' required' : '' ?> placeholder="<?= study_interest_h((string)$field['placeholder']) ?>"><?php if ((string)$field['help'] !== ''): ?><small><?= study_interest_h((string)$field['help']) ?></small><?php endif; ?></label><?php endforeach; ?>
                 </div>
                 <?php if ((string)($intake['privacy_body'] ?? '') !== ''): ?><p class="sie-privacy-copy"><?= study_interest_h((string)$intake['privacy_body']) ?><?php if ((string)($intake['privacy_url'] ?? '') !== ''): ?> <a href="<?= study_interest_h((string)$intake['privacy_url']) ?>" target="_blank" rel="noopener noreferrer">Privacy policy</a><?php endif; ?></p><?php endif; ?>
+                <?php if ($registrationAttributes !== []): ?>
+                <div class="sie-registration-block">
+                    <?php foreach ($registrationAttributes as $code => $attribute): ?>
+                    <?php if (($attribute['control'] ?? 'select') === 'radio'): ?>
+                    <fieldset class="sie-field sie-field-wide sie-registration-radio"><legend><?= study_interest_h((string)$attribute['label']) ?><?= ($attribute['required'] ?? false) === true ? ' <b>*</b>' : '' ?></legend><div class="sie-registration-options"><?php foreach ($attribute['options'] as $option): ?><label><input data-sie-registration="<?= study_interest_h((string)$code) ?>" type="radio" name="sie-registration-<?= study_interest_h((string)$code) ?>" value="<?= study_interest_h((string)$option['code']) ?>"<?= ($attribute['required'] ?? false) === true ? ' required' : '' ?>><span><?= study_interest_h((string)$option['label']) ?></span></label><?php endforeach; ?></div><?php if ((string)$attribute['help'] !== ''): ?><small><?= study_interest_h((string)$attribute['help']) ?></small><?php endif; ?><small class="sie-field-privacy"><?= study_interest_h((string)$attribute['privacy']) ?></small></fieldset>
+                    <?php else: ?>
+                    <label class="sie-field sie-field-wide"><span><?= study_interest_h((string)$attribute['label']) ?><?= ($attribute['required'] ?? false) === true ? ' <b>*</b>' : '' ?></span><select data-sie-registration="<?= study_interest_h((string)$code) ?>"<?= ($attribute['required'] ?? false) === true ? ' required' : '' ?>><option value=""></option><?php foreach ($attribute['options'] as $option): ?><option value="<?= study_interest_h((string)$option['code']) ?>"><?= study_interest_h((string)$option['label']) ?></option><?php endforeach; ?></select><?php if ((string)$attribute['help'] !== ''): ?><small><?= study_interest_h((string)$attribute['help']) ?></small><?php endif; ?><small class="sie-field-privacy"><?= study_interest_h((string)$attribute['privacy']) ?></small></label>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
                 <?php if ($contactFields !== []): ?>
                 <div class="sie-contact-block">
                     <div class="sie-contact-heading"><div><span><?= study_interest_h((string)($intake['contact_heading'] ?? 'Contact')) ?></span></div><p><?= study_interest_h((string)($intake['contact_introduction'] ?? '')) ?></p></div>

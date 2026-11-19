@@ -23,11 +23,22 @@ try {
         || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.results.correct')
         || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.responses.view')
         || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.results.view')) throw new RuntimeException('Result correction permission changed.');
-    $statement = $pdo->prepare('SELECT s.*,v.version_code,v.algorithm_version,v.configuration_hash,v.configuration_json FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.public_id=? LIMIT 1 FOR UPDATE');
+    $statement = $pdo->prepare('SELECT s.id,s.public_id,s.status,s.result_revision,s.result_snapshot_json,s.completed_at_utc,s.started_at_utc,s.registration_attributes_hash,v.version_code,v.algorithm_version,v.configuration_hash,v.configuration_json FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id WHERE s.public_id=? LIMIT 1 FOR UPDATE');
     $statement->execute([$publicId]); $session = $statement->fetch(PDO::FETCH_ASSOC);
     if (!is_array($session) || (string)$session['status'] !== 'completed') throw new DomainException('Completed session was not found.');
     if ((int)$session['result_revision'] !== (int)$expectedRevision) throw new DomainException('This result changed while the correction form was open. Review the latest revision and try again.');
     $configuration = study_interest_configuration_from_session($session);
+    $registrationAttributes = [];
+    if (study_interest_has_eligibility_policies($configuration)) {
+        if (!user_can($pdo, $studyInterestUserId, 'plugin.study-interest.contacts.view')) throw new RuntimeException('Contact permission changed.');
+        $registrationStatement = $pdo->prepare('SELECT registration_attributes_json FROM study_interest_sessions WHERE id=? LIMIT 1');
+        $registrationStatement->execute([(int)$session['id']]);
+        $registrationJson = $registrationStatement->fetchColumn();
+        if (!is_string($registrationJson)) throw new RuntimeException('Session registration attributes are unavailable.');
+        $session['registration_attributes_json'] = $registrationJson;
+        $registrationAttributes = study_interest_registration_attributes_from_session($session, $configuration);
+    }
+    $eligibilityDate = (string)$session['started_at_utc'];
     $currentAnswers = study_interest_effective_answer_map($pdo, (int)$session['id']);
     $answers = [];
     foreach ($configuration['questions'] as $question) {
@@ -50,13 +61,14 @@ try {
     $currentSnapshot = json_decode((string)$session['result_snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($currentSnapshot)) throw new RuntimeException('Current result snapshot is invalid.');
     $duration = max(0, (int)($currentSnapshot['duration_seconds'] ?? 0));
-    $currentResult = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $currentAnswers, $duration);
-    if (!study_interest_snapshot_matches_result($currentSnapshot, $currentResult)) throw new RuntimeException('Current answers do not reproduce the stored result. The correction was stopped to preserve evidence.');
-    $result = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $answers, $duration);
+    $currentResult = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $currentAnswers, $duration, true, $registrationAttributes, $eligibilityDate);
+    if (!study_interest_snapshot_matches_result($currentSnapshot, $currentResult, (string)($session['registration_attributes_hash'] ?? ''))) throw new RuntimeException('Current answers do not reproduce the stored result. The correction was stopped to preserve evidence.');
+    $result = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $answers, $duration, true, $registrationAttributes, $eligibilityDate);
     $nextRevision = (int)$session['result_revision'] + 1;
     $now = study_interest_now_utc();
+    $schemaVersion = (int)($configuration['schema_version'] ?? 1);
     $snapshot = [
-        'schema' => max(1, (int)($currentSnapshot['schema'] ?? 1)),
+        'schema' => $schemaVersion >= 3 ? 2 : max(1, (int)($currentSnapshot['schema'] ?? 1)),
         'session_public_id' => $publicId,
         'version_code' => (string)$session['version_code'],
         'algorithm_version' => (string)$session['algorithm_version'],
@@ -66,6 +78,7 @@ try {
         'result_revision' => $nextRevision,
         'result_text' => $configuration['result_text'] ?? [],
     ] + $result;
+    if ($schemaVersion >= 3) $snapshot['registration_attributes_hash'] = (string)$session['registration_attributes_hash'];
     $snapshotJson = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
     $answersJson = json_encode($answers, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $revisionInsert = $pdo->prepare('INSERT INTO study_interest_result_revisions (session_id,revision_number,answers_json,snapshot_json,revision_hash,reason,created_by,created_at_utc) VALUES (?,?,?,?,?,?,?,?)');

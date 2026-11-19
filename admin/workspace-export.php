@@ -33,8 +33,8 @@ if ($dataset === 'sessions' && $fromDate instanceof DateTimeImmutable) { $where[
 if ($dataset === 'sessions' && $toDate instanceof DateTimeImmutable) { $where[] = 's.started_at_utc<?'; $params[] = app_site_datetime_to_utc_mysql($toDate->modify('+1 day')); }
 if ($q !== '') {
     $needle = '%' . $q . '%';
-    $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ?)";
-    array_push($params, $needle, $needle, $needle, $needle, $needle);
+    $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ? OR s.registration_attributes_json LIKE ?)";
+    array_push($params, $needle, $needle, $needle, $needle, $needle, $needle);
 }
 
 $file = null;
@@ -45,10 +45,19 @@ try {
     foreach (['workspace.export', 'contacts.view', 'sessions.view', 'results.view'] as $permission) {
         if (!function_exists('user_can') || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.' . $permission)) throw new RuntimeException('Workspace export permission changed.');
     }
-    $statement = $pdo->prepare("SELECT s.id,s.public_id,s.status,s.contact_consent_at_utc,s.started_at_utc,s.completed_at_utc,s.last_activity_at_utc,s.contact_json,s.result_revision,v.id AS version_id,v.version_code,v.expected_question_count,v.configuration_json,
+    $versionSchemas = [];
+    $versionConfigurations = [];
+    $versionStatement = $pdo->query('SELECT id,configuration_hash,configuration_json FROM study_interest_test_versions');
+    foreach ($versionStatement->fetchAll(PDO::FETCH_ASSOC) as $version) {
+        $configuration = study_interest_configuration_from_session($version);
+        $versionSchemas[(int)$version['id']] = (int)($configuration['schema_version'] ?? 1);
+        $versionConfigurations[(int)$version['id']] = $configuration;
+    }
+    $topDirectionCondition = study_interest_admin_top_direction_condition($versionSchemas);
+    $statement = $pdo->prepare("SELECT s.id,s.public_id,s.status,s.contact_consent_at_utc,s.started_at_utc,s.completed_at_utc,s.last_activity_at_utc,s.contact_json,s.registration_attributes_json,s.result_revision,v.id AS version_id,v.version_code,v.expected_question_count,
         (SELECT COUNT(*) FROM study_interest_answers a WHERE a.session_id=s.id) AS answer_count,
-        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
-        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
+        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
+        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
         (SELECT COUNT(*) FROM study_interest_result_flags f WHERE f.session_id=s.id) AS flag_count
         FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id
         WHERE " . implode(' AND ', $where) . ' ORDER BY s.last_activity_at_utc DESC,s.id DESC LIMIT 10001');
@@ -57,19 +66,14 @@ try {
     if (count($records) > 10000) throw new DomainException('This export contains more than 10,000 rows. Narrow the filters and try again.');
 
     $programLabels = [];
-    foreach ($records as $record) {
-        $id = (int)$record['version_id'];
-        if (isset($programLabels[$id])) continue;
-        $programLabels[$id] = [];
-        $configuration = json_decode((string)$record['configuration_json'], true);
-        if (!is_array($configuration)) continue;
+    foreach ($versionConfigurations as $id => $configuration) {
         foreach ($configuration['programs'] ?? [] as $code => $program) $programLabels[$id][(string)$code] = (string)($program['label'] ?? $code);
     }
 
     if ($dataset === 'participants') {
-        $headers = ['Participant', 'School / institution', 'Class / stage', 'Email', 'Phone', 'Contact consent', 'Session UUID', 'Assessment version', 'Status', 'Answers', 'Questions', 'Closest study direction', 'Interest index', 'Started (UTC)', 'Completed (UTC)'];
-        $numericColumns = [9, 10, 12];
-        $widths = [24, 26, 18, 28, 18, 16, 38, 20, 14, 12, 12, 30, 14, 22, 22];
+        $headers = ['Participant', 'School / institution', 'Class / stage', 'Email', 'Phone', 'Registration attributes', 'Contact consent', 'Session UUID', 'Assessment version', 'Status', 'Answers', 'Questions', 'Closest study direction', 'Interest index', 'Started (UTC)', 'Completed (UTC)'];
+        $numericColumns = [10, 11, 13];
+        $widths = [24, 26, 18, 28, 18, 35, 16, 38, 20, 14, 12, 12, 30, 14, 22, 22];
     } else {
         $headers = ['Session UUID', 'Participant', 'Assessment version', 'Status', 'Answers', 'Questions', 'Result revision', 'Closest study direction', 'Interest index', 'Quality flags', 'Started (UTC)', 'Completed (UTC)', 'Last activity (UTC)'];
         $numericColumns = [4, 5, 6, 8, 9];
@@ -83,7 +87,7 @@ try {
         if ($dataset === 'participants') {
             $rows[] = [
                 (string)($contact['name'] ?? ''), (string)($contact['school'] ?? ''), (string)($contact['class_level'] ?? ''),
-                (string)($contact['email'] ?? ''), (string)($contact['phone'] ?? ''), $record['contact_consent_at_utc'] !== null ? 'Yes' : 'No',
+                (string)($contact['email'] ?? ''), (string)($contact['phone'] ?? ''), (string)($record['registration_attributes_json'] ?? ''), $record['contact_consent_at_utc'] !== null ? 'Yes' : 'No',
                 (string)$record['public_id'], (string)$record['version_code'], (string)$record['status'], (int)$record['answer_count'],
                 (int)$record['expected_question_count'], $program, $record['top_score'] !== null ? round((float)$record['top_score'], 3) : '',
                 (string)$record['started_at_utc'], (string)($record['completed_at_utc'] ?? ''),

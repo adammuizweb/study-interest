@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/_init.php';
 adiwira_require_permission($pdo, 'plugin.study-interest.contacts.manage', false);
+adiwira_require_permission($pdo, 'plugin.study-interest.contacts.view', false);
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { adiwira_render_404(); return; }
 $publicId = trim((string)($_POST['session_public_id'] ?? ''));
 $returnUrl = study_interest_admin_url('participants/edit', ['s' => $publicId]);

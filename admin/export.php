@@ -15,13 +15,16 @@ try {
     $pdo->beginTransaction();
     if (!function_exists('authorization_lock_actor_permissions') || !authorization_lock_actor_permissions($pdo, $studyInterestUserId)) throw new RuntimeException('Unable to lock actor permissions.');
     if (!function_exists('user_can') || !user_can($pdo, $studyInterestUserId, 'plugin.study-interest.results.export')) throw new RuntimeException('Export permission changed.');
-    $version = $pdo->prepare('SELECT version_code FROM study_interest_test_versions WHERE id=? LIMIT 1 FOR UPDATE');
+    $version = $pdo->prepare('SELECT id,version_code,configuration_hash,configuration_json FROM study_interest_test_versions WHERE id=? LIMIT 1 FOR UPDATE');
     $version->execute([(int)$versionId]);
-    $versionCode = $version->fetchColumn();
-    if (!is_string($versionCode) || $versionCode === '') throw new DomainException('Assessment version is unavailable.');
+    $versionRow = $version->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($versionRow) || (string)$versionRow['version_code'] === '') throw new DomainException('Assessment version is unavailable.');
+    $versionCode = (string)$versionRow['version_code'];
+    $configuration = study_interest_configuration_from_session($versionRow);
+    $topDirectionCondition = study_interest_admin_top_direction_condition([(int)$versionId => (int)($configuration['schema_version'] ?? 1)]);
     $rows = $pdo->prepare("SELECT s.public_id,v.version_code,s.started_at_utc,s.completed_at_utc,s.result_revision,
-        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
-        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
+        (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
+        (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
         (SELECT COUNT(*) FROM study_interest_result_flags f WHERE f.session_id=s.id) AS flag_count
         FROM study_interest_sessions s JOIN study_interest_test_versions v ON v.id=s.version_id
         WHERE s.version_id=? AND s.status='completed' ORDER BY s.completed_at_utc ASC,s.id ASC");

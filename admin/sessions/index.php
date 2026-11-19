@@ -8,13 +8,15 @@ $canViewResults = study_interest_admin_can('plugin.study-interest.results.view')
 $canManageContacts = study_interest_admin_can('plugin.study-interest.contacts.manage');
 $canCorrect = $canViewResults && study_interest_admin_can('plugin.study-interest.responses.view') && study_interest_admin_can('plugin.study-interest.results.correct');
 $canExport = $canViewContacts && $canViewResults && study_interest_admin_can('plugin.study-interest.workspace.export');
-$versions = $pdo->query('SELECT id,version_code,status,configuration_json FROM study_interest_test_versions ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+$versions = $pdo->query('SELECT id,version_code,status,configuration_hash,configuration_json FROM study_interest_test_versions ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
 $programLabels = [];
+$versionSchemas = [];
 foreach ($versions as $version) {
-    $configuration = json_decode((string)$version['configuration_json'], true);
-    if (!is_array($configuration)) continue;
+    $configuration = study_interest_configuration_from_session($version);
+    $versionSchemas[(int)$version['id']] = (int)($configuration['schema_version'] ?? 1);
     foreach ($configuration['programs'] ?? [] as $code => $program) $programLabels[(int)$version['id']][(string)$code] = (string)($program['label'] ?? $code);
 }
+$topDirectionCondition = study_interest_admin_top_direction_condition($versionSchemas);
 $versionId = filter_var($_GET['version_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if ($versionId === false) $versionId = null;
 $status = trim((string)($_GET['status'] ?? ''));
@@ -40,8 +42,8 @@ if ($toDate instanceof DateTimeImmutable) { $where[] = 's.started_at_utc<?'; $pa
 if ($q !== '') {
     $needle = '%' . $q . '%';
     if ($canViewContacts) {
-        $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ?)";
-        array_push($params, $needle, $needle, $needle, $needle, $needle);
+        $where[] = "(s.public_id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.school')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(s.contact_json,'$.phone')) LIKE ? OR s.registration_attributes_json LIKE ?)";
+        array_push($params, $needle, $needle, $needle, $needle, $needle, $needle);
     } else {
         $where[] = 's.public_id LIKE ?';
         $params[] = $needle;
@@ -57,8 +59,8 @@ $offset = ($page - 1) * $perPage;
 $contactColumn = $canViewContacts ? 's.contact_json' : 'NULL AS contact_json';
 $resultColumns = $canViewResults
     ? "s.result_revision,
-       (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
-       (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND p.recommendation_type='DIRECT_ENTRY' ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
+       (SELECT p.program_code FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_program,
+       (SELECT p.score FROM study_interest_program_results p WHERE p.session_id=s.id AND {$topDirectionCondition} ORDER BY p.score DESC,p.program_code ASC LIMIT 1) AS top_score,
        (SELECT COUNT(*) FROM study_interest_result_flags f WHERE f.session_id=s.id) AS flag_count"
     : '0 AS result_revision,NULL AS top_program,NULL AS top_score,0 AS flag_count';
 $statement = $pdo->prepare("SELECT s.id,s.public_id,s.status,s.started_at_utc,s.completed_at_utc,s.last_activity_at_utc,{$resultColumns},{$contactColumn},v.id AS version_id,v.version_code,v.expected_question_count,
