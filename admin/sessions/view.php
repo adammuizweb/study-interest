@@ -44,7 +44,7 @@ if ($canViewResults) {
     $dimensionStatement = $pdo->prepare('SELECT * FROM study_interest_dimension_results WHERE session_id=? ORDER BY final_score DESC,dimension_code');
     $dimensionStatement->execute([(int)$session['id']]);
     $dimensions = $dimensionStatement->fetchAll(PDO::FETCH_ASSOC);
-    $programStatement = $pdo->prepare('SELECT * FROM study_interest_program_results WHERE session_id=? ORDER BY is_recommended DESC,rank_position IS NULL,rank_position,pre_eligibility_rank,score DESC');
+    $programStatement = $pdo->prepare("SELECT * FROM study_interest_program_results WHERE session_id=? ORDER BY is_recommended DESC,CASE eligibility_status WHEN 'ELIGIBLE' THEN 0 WHEN 'NEEDS_REVIEW' THEN 1 ELSE 2 END,CASE recommendation_type WHEN 'DIRECT_ENTRY' THEN 0 ELSE 1 END,rank_position IS NULL,rank_position,pre_eligibility_rank,score DESC");
     $programStatement->execute([(int)$session['id']]);
     $programs = $programStatement->fetchAll(PDO::FETCH_ASSOC);
     $flagStatement = $pdo->prepare('SELECT * FROM study_interest_result_flags WHERE session_id=? ORDER BY severity DESC,flag_code');
@@ -73,17 +73,29 @@ $dimensionLabels = [];
 foreach ($configuration['dimensions'] ?? [] as $code => $meta) $dimensionLabels[(string)$code] = (string)($meta['label'] ?? $code);
 $programLabels = [];
 foreach ($configuration['programs'] ?? [] as $code => $meta) $programLabels[(string)$code] = (string)($meta['label'] ?? $code);
-$leadingProgram = null;
-foreach ($programs as $program) {
-    if ((string)$program['recommendation_type'] !== 'DIRECT_ENTRY') continue;
-    if ((int)($configuration['schema_version'] ?? 1) >= 3
-        && ((int)$program['is_recommended'] !== 1 || (int)$program['rank_position'] !== 1
-            || (string)$program['eligibility_status'] !== 'ELIGIBLE' || (string)$program['intake_availability'] !== 'ACCEPTING')) continue;
-    if ($leadingProgram === null || (float)$program['score'] > (float)$leadingProgram['score']
-        || ((float)$program['score'] === (float)$leadingProgram['score'] && (string)$program['program_code'] < (string)$leadingProgram['program_code'])) $leadingProgram = $program;
-}
 $snapshot = $canViewResults ? json_decode((string)($session['result_snapshot_json'] ?? ''), true) : [];
 if (!is_array($snapshot)) $snapshot = [];
+$schemaVersion = (int)($configuration['schema_version'] ?? 1);
+$participantRecommendations = $schemaVersion >= 3
+    ? (is_array($snapshot['recommendations'] ?? null) ? $snapshot['recommendations'] : [])
+    : study_interest_historical_leading_directions(
+        is_array($snapshot['programs'] ?? null) ? $snapshot['programs'] : [],
+        max(1, min(50, (int)($configuration['thresholds']['direct_recommendation_limit'] ?? 3)))
+    );
+$directRecommendationMinimum = max(0.0, min(100.0, (float)($configuration['thresholds']['direct_recommendation_minimum'] ?? 0)));
+$participantRecommendations = array_values(array_filter(
+    $participantRecommendations,
+    static fn(mixed $program): bool => is_array($program) && is_numeric($program['score'] ?? null)
+        && (float)$program['score'] >= $directRecommendationMinimum
+));
+$participantDimensions = array_slice(is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [], 0, 3);
+$participantPathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
+$resultText = is_array($snapshot['result_text'] ?? null) ? $snapshot['result_text'] : [];
+$resultActions = $schemaVersion >= 3 && is_array($configuration['result_actions'] ?? null)
+    ? array_slice(array_values(array_filter($configuration['result_actions'], static fn(mixed $action): bool => is_array($action)
+        && is_string($action['label'] ?? null) && trim((string)$action['label']) !== '' && mb_strlen((string)$action['label']) <= 120
+        && is_string($action['url'] ?? null) && study_interest_public_action_url_error((string)$action['url']) === null)), 0, 6)
+    : [];
 $pdo->commit();
 $flagLabels = ['STRAIGHTLINING' => __('Repeated answer pattern'), 'FAST_COMPLETION' => __('Fast completion'), 'LOW_RESPONSE_CONSISTENCY' => __('Low response consistency')];
 ?>
@@ -102,11 +114,29 @@ $flagLabels = ['STRAIGHTLINING' => __('Repeated answer pattern'), 'FAST_COMPLETI
       <article><span><?= study_interest_h(__('Duration')) ?></span><strong><?= $canViewResults && isset($snapshot['duration_seconds']) ? number_format((int)$snapshot['duration_seconds'] / 60, 1) : '—' ?></strong><small><?= study_interest_h($canViewResults ? __('minutes') : __('result access restricted')) ?></small></article>
     </section>
     <?php if ($canViewResults && (string)$session['status'] === 'completed'): ?>
-      <?php if ($leadingProgram !== null): ?><section class="sie-leading-direction"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Primary outcome')) ?></span><h2><?= study_interest_h(__('Closest study direction')) ?></h2><p><?= study_interest_h(__('This is the program with the highest interest alignment for this participant, even when the overall profile is not yet dominant.')) ?></p></div><div><span><?= study_interest_h($programLabels[(string)$leadingProgram['program_code']] ?? (string)$leadingProgram['program_code']) ?></span><strong><?= number_format((float)$leadingProgram['score'], 1) ?><small>/100</small></strong><b><?= study_interest_h((string)$leadingProgram['classification']) ?></b></div></section><?php endif; ?>
-      <div class="sie-config-grid">
-        <section class="sie-config-panel"><div class="sie-panel-title"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Result profile')) ?></span><h2><?= study_interest_h(__('Dimension scores')) ?></h2></div></div><div class="sie-bar-list is-dimensions"><?php foreach ($dimensions as $index => $row): ?><div class="sie-analytics-bar"><div><span><i><?= str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT) ?></i><b><?= study_interest_h($dimensionLabels[(string)$row['dimension_code']] ?? (string)$row['dimension_code']) ?></b></span><strong><?= number_format((float)$row['final_score'], 1) ?></strong></div><div class="sie-bar-track"><i style="width:<?= study_interest_h(max(0, min(100, (float)$row['final_score']))) ?>%"></i></div></div><?php endforeach; ?></div></section>
-        <section class="sie-config-panel"><div class="sie-panel-title"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Comparison')) ?></span><h2><?= study_interest_h(__('All study directions')) ?></h2></div></div><div class="sie-program-results"><?php foreach ($programs as $program): ?><div class="<?= $leadingProgram !== null && (string)$program['program_code'] === (string)$leadingProgram['program_code'] ? 'is-recommended' : '' ?>"><span><?= $program['rank_position'] !== null ? '#' . (int)$program['rank_position'] : '—' ?></span><p><b><?= study_interest_h($programLabels[(string)$program['program_code']] ?? (string)$program['program_code']) ?></b><small><?= study_interest_h((string)$program['classification']) ?></small></p><strong><?= number_format((float)$program['score'], 1) ?></strong></div><?php endforeach; ?></div></section>
-      </div>
+      <section class="sie-participant-result" aria-labelledby="sie-participant-result-title">
+        <div class="sie-participant-result__head"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Participant-facing result')) ?></span><h2 id="sie-participant-result-title"><?= study_interest_h((string)($resultText['hero_title'] ?? __('Interest exploration result'))) ?></h2><p><?= study_interest_h((string)($resultText['directions_body'] ?? __('Only eligible directions that meet the published recommendation rules are shown here.'))) ?></p></div><strong><?= study_interest_h(__('Safe presentation view')) ?></strong></div>
+        <?php if ($participantDimensions !== []): ?><div class="sie-participant-signals" aria-label="<?= study_interest_h(__('Leading interest dimensions')) ?>"><?php foreach ($participantDimensions as $index => $dimension): ?><article><span>0<?= (int)$index + 1 ?></span><div><small><?= study_interest_h(__('Interest dimension')) ?></small><b><?= study_interest_h((string)($dimension['label'] ?? '')) ?></b></div><strong><?= number_format((float)($dimension['score'] ?? 0), 1) ?></strong></article><?php endforeach; ?></div><?php endif; ?>
+        <?php if ($participantRecommendations === []): ?>
+          <article class="sie-participant-open"><span aria-hidden="true">+</span><div><small><?= study_interest_h(__('Open profile')) ?></small><h3><?= study_interest_h((string)($resultText['no_dominant_title'] ?? __('The interest profile remains open'))) ?></h3><p><?= study_interest_h((string)($resultText['no_dominant_body'] ?? __('Use the interest dimensions to guide further exploration.'))) ?></p></div></article>
+        <?php else: ?>
+          <div class="sie-participant-programs"><?php foreach ($participantRecommendations as $index => $program): ?><article><span>0<?= (int)($program['rank'] ?? $index + 1) ?></span><h3><?= study_interest_h((string)($program['label'] ?? '')) ?></h3><div><strong><?= number_format((float)($program['score'] ?? 0), 1) ?></strong><small>/100</small></div><p><?= study_interest_h((string)($program['classification'] ?? '')) ?></p></article><?php endforeach; ?></div>
+        <?php endif; ?>
+        <?php if ($participantPathways !== []): ?><div class="sie-participant-pathways"><?php foreach ($participantPathways as $pathway): ?><article><small><?= study_interest_h((string)($resultText['professional_pathway'] ?? __('Further pathway'))) ?></small><b><?= study_interest_h((string)($pathway['label'] ?? '')) ?></b><p><?= study_interest_h((string)($resultText['professional_pathway_body'] ?? '')) ?></p></article><?php endforeach; ?></div><?php endif; ?>
+        <footer><p><?= study_interest_h((string)($resultText['disclaimer'] ?? __('This result is an interest map, not an admission decision or measure of academic ability.'))) ?></p><?php if ($resultActions !== []): ?><div><?php foreach ($resultActions as $action): ?><a href="<?= study_interest_h((string)$action['url']) ?>"><?= study_interest_h((string)$action['label']) ?> <span aria-hidden="true">&rarr;</span></a><?php endforeach; ?></div><?php endif; ?></footer>
+      </section>
+      <section class="sie-config-panel sie-dimension-evidence"><div class="sie-panel-title"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Result profile')) ?></span><h2><?= study_interest_h(__('Dimension scores')) ?></h2></div><p><?= study_interest_h(__('These dimensions support the participant conversation even when no program crosses the recommendation threshold.')) ?></p></div><div class="sie-bar-list is-dimensions"><?php foreach ($dimensions as $index => $row): ?><div class="sie-analytics-bar"><div><span><i><?= str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT) ?></i><b><?= study_interest_h($dimensionLabels[(string)$row['dimension_code']] ?? (string)$row['dimension_code']) ?></b></span><strong><?= number_format((float)$row['final_score'], 1) ?></strong></div><div class="sie-bar-track"><i style="width:<?= study_interest_h(max(0, min(100, (float)$row['final_score']))) ?>%"></i></div></div><?php endforeach; ?></div></section>
+      <details class="sie-internal-evidence">
+        <summary><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Internal evidence')) ?></span><h2><?= study_interest_h(__('All raw study-direction scores')) ?></h2><p><?= study_interest_h(__('Counselor and audit data only. This includes pathways and directions excluded by eligibility or recommendation thresholds.')) ?></p></div><span><b><?= study_interest_h(__('Show internal scores')) ?></b><i><?= study_interest_h(__('Hide internal scores')) ?></i></span></summary>
+        <div class="sie-program-results"><?php foreach ($programs as $program): ?><?php
+          $eligibilityStatus = (string)$program['eligibility_status'];
+          $isRecommended = (int)$program['is_recommended'] === 1;
+          $evidenceLabel = $isRecommended ? __('Shown to participant')
+              : ($eligibilityStatus === 'INELIGIBLE' ? __('Not shown: ineligible')
+              : ($eligibilityStatus === 'NEEDS_REVIEW' ? __('Not shown: eligibility review required')
+              : ((string)$program['recommendation_type'] === 'PROFESSIONAL_PATHWAY' ? __('Not shown: pathway rule not met') : __('Not shown: below recommendation threshold'))));
+        ?><div class="<?= $isRecommended ? 'is-recommended' : ($eligibilityStatus !== 'ELIGIBLE' ? 'is-excluded' : '') ?>"><span><?= $program['rank_position'] !== null ? '#' . (int)$program['rank_position'] : '—' ?></span><p><b><?= study_interest_h($programLabels[(string)$program['program_code']] ?? (string)$program['program_code']) ?></b><small><?= study_interest_h((string)$program['classification']) ?> &middot; <?= study_interest_h($evidenceLabel) ?></small></p><strong><?= number_format((float)$program['score'], 1) ?></strong></div><?php endforeach; ?></div>
+      </details>
     <?php endif; ?>
     <?php if ($canViewResponses): ?>
       <section class="sie-admin-section"><div class="sie-admin-section__head"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Response review')) ?></span><h2><?= study_interest_h(__('Questions and effective answers')) ?></h2></div><p><?= study_interest_h(__('These are the effective responses used by the current session result. Original corrections remain protected in revision history.')) ?></p></div><div class="sie-response-list">

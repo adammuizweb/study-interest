@@ -9,6 +9,11 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
+Version `0.9.13` separates the participant-facing session summary from raw
+internal scoring evidence. Eligibility-filtered recommendations and open-profile
+guidance remain visible by default, while ineligible directions and pathways are
+retained in a collapsed audit panel.
+
 Version `0.9.12` adds generic schema-v3 registration attributes, immutable
 eligibility-policy evidence, intake availability, and the full-precision frozen
 `weighted-choice-2.1` scorer. The neutral 18-question English starter uses
