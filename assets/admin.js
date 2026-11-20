@@ -31,7 +31,6 @@
   const correctionForm = root.querySelector('[data-sie-correction-form]');
   const guidance = root.querySelector('[data-sie-correction-guidance]');
   if (correctionForm && guidance) {
-    const targetField = guidance.querySelector('[data-sie-guidance-target]');
     const status = guidance.querySelector('[data-sie-guidance-status]');
     const programList = guidance.querySelector('[data-sie-guidance-programs]');
     const suggestionList = guidance.querySelector('[data-sie-guidance-suggestions]');
@@ -145,11 +144,15 @@
       window.clearTimeout(previewTimer);
       clearPreview();
       guidance.setAttribute('aria-busy', 'true');
-      status.textContent = 'Waiting to recalculate guidance…';
+      status.textContent = 'Answer changed. Recalculating guidance…';
       previewTimer = window.setTimeout(() => requestPreview(sequence), 180);
     };
-    answerFields.forEach((field) => field.addEventListener('change', schedulePreview));
-    targetField?.addEventListener('change', schedulePreview);
+    const previewFieldSelector = '[data-sie-answer], [data-sie-guidance-target]';
+    const schedulePreviewFromEvent = (event) => {
+      if (event.target instanceof Element && event.target.closest(previewFieldSelector)) schedulePreview();
+    };
+    correctionForm.addEventListener('input', schedulePreviewFromEvent);
+    correctionForm.addEventListener('change', schedulePreviewFromEvent);
     suggestionList?.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-question-code][data-option-code]');
       if (!button) return;

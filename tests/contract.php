@@ -16,7 +16,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.15', 'plugin version is 0.9.15');
+$check(($manifest['version'] ?? null) === '0.9.16', 'plugin version is 0.9.16');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -104,7 +104,8 @@ $check(($routes['admin/tools/study-interest/results']['permission'] ?? null) ===
 $check(($routes['admin/tools/study-interest/export']['permission'] ?? null) === 'plugin.study-interest.results.export', 'export route uses separate export permission');
 $check(($routes['admin/tools/study-interest/participants']['permission'] ?? null) === 'plugin.study-interest.contacts.view', 'participant identity route uses contact permission');
 $check(($routes['admin/tools/study-interest/sessions']['permission'] ?? null) === 'plugin.study-interest.sessions.view'
-    && ($routes['admin/tools/study-interest/sessions/view']['permission'] ?? null) === 'plugin.study-interest.sessions.view', 'session list and detail use session-view permission');
+    && ($routes['admin/tools/study-interest/sessions/view']['permission'] ?? null) === 'plugin.study-interest.sessions.view'
+    && ($routes['admin/tools/study-interest/sessions/final-result']['permission'] ?? null) === 'plugin.study-interest.results.view', 'session list, detail, and final result use separate view permissions');
 $check(($routes['admin/tools/study-interest/sessions/save-correction']['permission'] ?? null) === 'plugin.study-interest.results.correct', 'result correction action uses dedicated permission');
 $check(($routes['admin/tools/study-interest/sessions/preview-correction']['permission'] ?? null) === 'plugin.study-interest.results.correct', 'result correction preview uses dedicated permission');
 $check(($routes['admin/tools/study-interest/audit']['permission'] ?? null) === 'plugin.study-interest.audit.view', 'audit route uses dedicated permission');
@@ -135,10 +136,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.15')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.15')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.15')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.15'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.16')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.16')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.16')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.16'), 'plugin assets use the release cache key');
 $check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
     && str_contains($publicLayoutSource, 'property="og:image"')
     && str_contains($publicLayoutSource, 'name="twitter:image"')
@@ -202,7 +203,8 @@ $check(str_contains($correctionSource, 'study_interest_result_revisions')
     && str_contains($correctionSource, 'plugin.study-interest.responses.view')
     && str_contains($correctionSource, 'result.corrected')
     && str_contains($correctionSource, 'changed_questions')
-    && str_contains($sessionListSource, 'Edit submitted answers'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
+    && str_contains($sessionListSource, 'Edit submitted answers')
+    && str_contains($sessionListSource, 'sessions/final-result'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
 $check(str_contains($correctionPreviewSource, 'study_interest_correction_preview')
     && str_contains($correctionPreviewSource, 'study_interest_score_versioned')
     && str_contains($correctionPreviewSource, 'study_interest_snapshot_matches_result')
@@ -225,7 +227,9 @@ $check(str_contains($correctionPageSource, 'data-sie-correction-guidance')
     && str_contains($correctionPageSource, 'sessions/preview-correction')
     && str_contains($correctionPageSource, "['action' => 'preview']")
     && str_contains($adminSource, 'data-sie-guidance-suggestions')
-    && str_contains($adminSource, "includes('application/json')"), 'correction workspace exposes target-direction guidance and answer-level impact controls');
+     && str_contains($adminSource, "includes('application/json')")
+     && str_contains($adminSource, "correctionForm.addEventListener('input'")
+     && str_contains($adminSource, "correctionForm.addEventListener('change'"), 'correction workspace exposes target-direction guidance and robust manual answer-level impact controls');
 $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
     && str_contains($sessionViewSource, 'plugin.study-interest.contacts.view'), 'session detail separates response and contact access');
 $check(str_contains($sessionViewSource, '$participantRecommendations')
@@ -234,11 +238,19 @@ $check(str_contains($sessionViewSource, '$participantRecommendations')
     && str_contains($sessionViewSource, "(float)\$program['score'] >= \$directRecommendationMinimum")
     && str_contains($sessionViewSource, 'sie-participant-result')
     && str_contains($sessionViewSource, 'Safe presentation view'), 'session detail leads with the frozen participant-facing result');
+$finalResultSource = (string)file_get_contents($root . '/admin/sessions/final-result.php');
 $check(str_contains($sessionViewSource, '<details class="sie-internal-evidence">')
-    && str_contains($sessionViewSource, 'All raw study-direction scores')
-    && str_contains($sessionViewSource, 'Not shown: ineligible')
+     && str_contains($sessionViewSource, 'All raw study-direction scores')
+      && !str_contains($sessionViewSource, "__('Result revision')")
+     && str_contains($sessionViewSource, 'Edit submitted answers')
+     && str_contains($sessionViewSource, 'Not shown: ineligible')
     && str_contains($sessionViewSource, "CASE eligibility_status WHEN 'ELIGIBLE' THEN 0 WHEN 'NEEDS_REVIEW' THEN 1 ELSE 2 END"),
-    'raw ineligible and pathway scores remain available only as collapsed internal evidence ordered after eligible directions');
+     'raw ineligible and pathway scores remain available only as collapsed internal evidence ordered after eligible directions');
+$check(str_contains($finalResultSource, 'Participant-facing result')
+     && str_contains($finalResultSource, 'Result profile')
+     && str_contains($finalResultSource, 'All raw study-direction scores')
+     && !str_contains($finalResultSource, 'Internal evidence')
+     && !str_contains($finalResultSource, 'Result revision'), 'final result is limited to participant-facing result, profile, and raw direction scores');
 $check(str_contains($sessionViewSource, "apply_filters('study_interest_admin_program_rank_labels'")
     && str_contains($sessionViewSource, "'surface' => 'session_internal_evidence'")
     && str_contains($sessionViewSource, '$displayRank = $index + 1')

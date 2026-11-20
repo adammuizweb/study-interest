@@ -1,6 +1,6 @@
 {
   "name": "study-interest",
-  "version": "0.9.15",
+  "version": "0.9.16",
   "title": "Study Interest Explorer",
   "icon": "icon.svg",
   "description": "Flexible, versioned study-interest assessments for exploration and counselling.",
@@ -285,6 +285,14 @@
         "title": "Study Interest Session Detail",
         "roles": ["admin", "editor"],
         "permission": "plugin.study-interest.sessions.view",
+        "hidden": true
+      },
+      {
+        "route": "admin/tools/study-interest/sessions/final-result",
+        "file": "admin/sessions/final-result.php",
+        "title": "Study Interest Final Result",
+        "roles": ["admin", "editor"],
+        "permission": "plugin.study-interest.results.view",
         "hidden": true
       },
       {
