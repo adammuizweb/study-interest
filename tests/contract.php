@@ -16,7 +16,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.14', 'plugin version is 0.9.14');
+$check(($manifest['version'] ?? null) === '0.9.15', 'plugin version is 0.9.15');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -25,6 +25,22 @@ $check(($manifest['plugin_uri'] ?? null) === 'https://jyavani.com/plugin/study-i
 $check(($manifest['icon'] ?? null) === 'icon.svg' && is_file($root . '/icon.svg'), 'package declares a root-level bundled Store icon');
 $check(in_array('pdo_mysql', $manifest['requires']['extensions'] ?? [], true), 'MySQL PDO requirement is explicit');
 $check(in_array('zip', $manifest['requires']['extensions'] ?? [], true), 'ZIP requirement supports native Excel exports');
+$revisionAnswers = '{"Q01":"1"}';
+$revisionSnapshot = '{"schema":2}';
+$revisionCreatedAt = '2026-11-20 10:44:35.000000';
+$legacyRevisionHash = study_interest_result_revision_hash(9, 1, $revisionAnswers, $revisionSnapshot, 'Correction reason', 3, '2026-11-20 10:44:35');
+$canonicalRevisionHash = study_interest_result_revision_hash(9, 1, $revisionAnswers, $revisionSnapshot, 'Correction reason', 3, $revisionCreatedAt);
+$invalidRevisionTimestampRejected = false;
+try { study_interest_result_revision_created_at('not-a-timestamp'); }
+catch (InvalidArgumentException) { $invalidRevisionTimestampRejected = true; }
+$check(study_interest_result_revision_created_at('2026-11-20 10:44:35') === $revisionCreatedAt
+    && study_interest_result_revision_created_at('2026-11-20 10:44:35.12') === '2026-11-20 10:44:35.120000'
+    && $invalidRevisionTimestampRejected,
+    'result revision timestamps canonicalize to the database six-digit precision');
+$check(study_interest_result_revision_hash_matches($legacyRevisionHash, 9, 1, $revisionAnswers, $revisionSnapshot, 'Correction reason', 3, $revisionCreatedAt)
+    && study_interest_result_revision_hash_matches($canonicalRevisionHash, 9, 1, $revisionAnswers, $revisionSnapshot, 'Correction reason', 3, $revisionCreatedAt)
+    && !study_interest_result_revision_hash_matches($legacyRevisionHash, 9, 1, $revisionAnswers, $revisionSnapshot, 'Changed reason', 3, $revisionCreatedAt),
+    'revision integrity accepts only exact hashes and the bounded legacy zero-fraction timestamp form');
 
 $migration = $root . '/migrations/0001-foundation.sql';
 $schema = (string)file_get_contents($migration);
@@ -119,10 +135,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.14')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.14')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.14')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.14'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.15')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.15')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.15')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.15'), 'plugin assets use the release cache key');
 $check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
     && str_contains($publicLayoutSource, 'property="og:image"')
     && str_contains($publicLayoutSource, 'name="twitter:image"')

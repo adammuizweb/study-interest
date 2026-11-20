@@ -57,9 +57,8 @@ if ($canViewAudit) {
     $revisions = $revisionStatement->fetchAll(PDO::FETCH_ASSOC);
     foreach ($revisions as $revision) {
         $actorId = $revision['created_by'] !== null ? (int)$revision['created_by'] : null;
-        $expectedRevisionHash = study_interest_result_revision_hash((int)$session['id'], (int)$revision['revision_number'], (string)$revision['answers_json'], (string)$revision['snapshot_json'], (string)$revision['reason'], $actorId, (string)$revision['created_at_utc']);
         $revisionSnapshot = json_decode((string)$revision['snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
-        if (!hash_equals((string)$revision['revision_hash'], $expectedRevisionHash)
+        if (!study_interest_result_revision_hash_matches((string)$revision['revision_hash'], (int)$session['id'], (int)$revision['revision_number'], (string)$revision['answers_json'], (string)$revision['snapshot_json'], (string)$revision['reason'], $actorId, (string)$revision['created_at_utc'])
             || !is_array($revisionSnapshot)
             || (string)($revisionSnapshot['session_public_id'] ?? '') !== $publicId
             || (int)($revisionSnapshot['result_revision'] ?? 0) !== (int)$revision['revision_number']

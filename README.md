@@ -9,6 +9,10 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
+Version `0.9.15` canonicalizes correction timestamps to the database precision
+used by append-only revision hashes and verifies the bounded legacy zero-fraction
+form produced by earlier corrections.
+
 Version `0.9.14` adds bounded, deployment-owned rank labels to the internal
 program evidence list. Every raw direction receives a stable visual position,
 while eligibility and recommendation evidence remains visible and authoritative.

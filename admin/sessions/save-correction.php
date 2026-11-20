@@ -65,7 +65,7 @@ try {
     if (!study_interest_snapshot_matches_result($currentSnapshot, $currentResult, (string)($session['registration_attributes_hash'] ?? ''))) throw new RuntimeException('Current answers do not reproduce the stored result. The correction was stopped to preserve evidence.');
     $result = study_interest_score_versioned((string)$session['algorithm_version'], $configuration, $answers, $duration, true, $registrationAttributes, $eligibilityDate);
     $nextRevision = (int)$session['result_revision'] + 1;
-    $now = study_interest_now_utc();
+    $now = study_interest_result_revision_created_at(study_interest_now_utc());
     $schemaVersion = (int)($configuration['schema_version'] ?? 1);
     $snapshot = [
         'schema' => $schemaVersion >= 3 ? 2 : max(1, (int)($currentSnapshot['schema'] ?? 1)),

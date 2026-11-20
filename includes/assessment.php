@@ -53,6 +53,26 @@ function study_interest_result_revision_hash(int $sessionId, int $revisionNumber
     ]));
 }
 
+function study_interest_result_revision_created_at(string $createdAtUtc): string
+{
+    if (preg_match('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/D', $createdAtUtc) === 1) return $createdAtUtc . '.000000';
+    if (preg_match('/\A(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.(\d{1,6})\z/D', $createdAtUtc, $match) === 1) {
+        return $match[1] . '.' . str_pad($match[2], 6, '0');
+    }
+    throw new InvalidArgumentException('Result revision timestamp is invalid.');
+}
+
+function study_interest_result_revision_hash_matches(string $storedHash, int $sessionId, int $revisionNumber, string $answersJson, string $snapshotJson, string $reason, ?int $actorId, string $createdAtUtc): bool
+{
+    $expected = study_interest_result_revision_hash($sessionId, $revisionNumber, $answersJson, $snapshotJson, $reason, $actorId, $createdAtUtc);
+    if (hash_equals($storedHash, $expected)) return true;
+    if (str_ends_with($createdAtUtc, '.000000')) {
+        $legacy = study_interest_result_revision_hash($sessionId, $revisionNumber, $answersJson, $snapshotJson, $reason, $actorId, substr($createdAtUtc, 0, -7));
+        return hash_equals($storedHash, $legacy);
+    }
+    return false;
+}
+
 function study_interest_snapshot_registration_hash_matches(array $snapshot, ?string $registrationAttributesHash): bool
 {
     if ((int)($snapshot['schema'] ?? 1) < 2) return true;
@@ -89,8 +109,7 @@ function study_interest_effective_answer_map(PDO $pdo, int $sessionId, ?int $rev
     $revision->execute([$sessionId, $revisionNumber]);
     $row = $revision->fetch(PDO::FETCH_ASSOC);
     if (!is_array($row)) throw new RuntimeException('Effective result revision is unavailable.');
-    $expectedHash = study_interest_result_revision_hash($sessionId, $revisionNumber, (string)$row['answers_json'], (string)$row['snapshot_json'], (string)$row['reason'], $row['created_by'] !== null ? (int)$row['created_by'] : null, (string)$row['created_at_utc']);
-    if (!hash_equals((string)$row['revision_hash'], $expectedHash)) throw new RuntimeException('Effective result revision integrity check failed.');
+    if (!study_interest_result_revision_hash_matches((string)$row['revision_hash'], $sessionId, $revisionNumber, (string)$row['answers_json'], (string)$row['snapshot_json'], (string)$row['reason'], $row['created_by'] !== null ? (int)$row['created_by'] : null, (string)$row['created_at_utc'])) throw new RuntimeException('Effective result revision integrity check failed.');
     $snapshot = json_decode((string)$row['snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($snapshot) || (string)($snapshot['session_public_id'] ?? '') !== (string)$session['public_id'] || (int)($snapshot['result_revision'] ?? 0) !== $revisionNumber || !hash_equals((string)$session['configuration_hash'], (string)($snapshot['configuration_hash'] ?? ''))
         || !study_interest_snapshot_registration_hash_matches($snapshot, isset($session['registration_attributes_hash']) ? (string)$session['registration_attributes_hash'] : null)) throw new RuntimeException('Effective result revision identity is invalid.');
