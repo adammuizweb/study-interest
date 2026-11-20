@@ -30,6 +30,11 @@ function study_interest_admin_action_url(string $route): string
     return rtrim((string)ADMIN_BASE_PATH, '/') . '/admin/tools/study-interest/' . trim($route, '/') . '.php';
 }
 
+function study_interest_admin_icon(string $name): string
+{
+    return function_exists('svg_ico') ? (string)svg_ico($name) : '';
+}
+
 function study_interest_admin_can(string $permission): bool
 {
     global $pdo, $studyInterestUserId;
