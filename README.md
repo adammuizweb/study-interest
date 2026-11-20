@@ -9,10 +9,13 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.16` adds a responsive session Actions menu, a focused Final Result
-view, and more reliable manual answer-impact previews in the correction workspace.
-The session detail keeps revision evidence available for audit without placing
-revision metadata in the result summary or Final Result view.
+Version `0.9.17` adds a compact three-dot session action menu, keeps Correction
+before the Danger zone, improves Final Result contrast, and retains reliable
+manual answer-impact previews in the correction workspace.
+
+Version `0.9.16` added a focused Final Result view and kept revision evidence
+available for audit without placing revision metadata in the result summary or
+Final Result view.
 
 Version `0.9.15` canonicalizes correction timestamps to the database precision
 used by append-only revision hashes and verifies the bounded legacy zero-fraction

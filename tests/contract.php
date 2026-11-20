@@ -16,7 +16,7 @@ $check = static function (bool $passed, string $message) use (&$failures): void 
 
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $check(($manifest['name'] ?? null) === 'study-interest', 'plugin slug is generic study-interest');
-$check(($manifest['version'] ?? null) === '0.9.16', 'plugin version is 0.9.16');
+$check(($manifest['version'] ?? null) === '0.9.17', 'plugin version is 0.9.17');
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.174', 'Core requirement includes append-only plugin migrations');
 $check(($manifest['requires']['plugins'] ?? null) === [], 'plugin is standalone and declares no plugin dependency');
 $check(($manifest['github_url'] ?? null) === 'https://github.com/adammuizweb/study-interest', 'repository URL is generic');
@@ -136,10 +136,10 @@ $publicLayoutSource = (string)file_get_contents($root . '/public/layout.php');
 $check(str_contains($pluginSource, "register_frontend_route('study-interest'"), 'plugin owns its public route');
 $check(!str_contains(strtolower($pluginSource), 'quiz'), 'bootstrap loads without Quiz functions or gates');
 $check(str_contains($pluginSource, "add_action('admin_head', 'study_interest_admin_assets')")
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.16')
-    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.16')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.16')
-    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.16'), 'plugin assets use the release cache key');
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.css?v=0.9.17')
+    && str_contains($pluginSource, '/static/plugins/study-interest/admin.js?v=0.9.17')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.css?v=0.9.17')
+    && str_contains($publicLayoutSource, '/static/plugins/study-interest/frontend.js?v=0.9.17'), 'plugin assets use the release cache key');
 $check(str_contains($publicLayoutSource, 'study_interest_site_favicon_url($pdo)')
     && str_contains($publicLayoutSource, 'property="og:image"')
     && str_contains($publicLayoutSource, 'name="twitter:image"')
@@ -204,7 +204,9 @@ $check(str_contains($correctionSource, 'study_interest_result_revisions')
     && str_contains($correctionSource, 'result.corrected')
     && str_contains($correctionSource, 'changed_questions')
     && str_contains($sessionListSource, 'Edit submitted answers')
-    && str_contains($sessionListSource, 'sessions/final-result'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
+    && str_contains($sessionListSource, 'sessions/final-result')
+    && str_contains($sessionListSource, 'sie-row-actions-toggle')
+    && str_contains($sessionListSource, 'sie-session-actions-menu'), 'submitted-answer editing recalculates and records an authorized audited optimistic revision');
 $check(str_contains($correctionPreviewSource, 'study_interest_correction_preview')
     && str_contains($correctionPreviewSource, 'study_interest_score_versioned')
     && str_contains($correctionPreviewSource, 'study_interest_snapshot_matches_result')
@@ -229,7 +231,8 @@ $check(str_contains($correctionPageSource, 'data-sie-correction-guidance')
     && str_contains($adminSource, 'data-sie-guidance-suggestions')
      && str_contains($adminSource, "includes('application/json')")
      && str_contains($adminSource, "correctionForm.addEventListener('input'")
-     && str_contains($adminSource, "correctionForm.addEventListener('change'"), 'correction workspace exposes target-direction guidance and robust manual answer-level impact controls');
+     && str_contains($adminSource, "correctionForm.addEventListener('change'")
+     && str_contains($adminSource, 'closeSessionActionMenus'), 'correction workspace exposes target-direction guidance and robust manual answer-level impact controls');
 $check(str_contains($sessionViewSource, 'plugin.study-interest.responses.view')
     && str_contains($sessionViewSource, 'plugin.study-interest.contacts.view'), 'session detail separates response and contact access');
 $check(str_contains($sessionViewSource, '$participantRecommendations')
