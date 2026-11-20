@@ -349,10 +349,11 @@
 .sie-program-results > div { display: grid; grid-template-columns: 30px 1fr auto; gap: .5rem; align-items: center; padding: .55rem; border: 1px solid var(--sie-border); border-radius: 9px; }
 .sie-program-results > div.is-recommended { border-color: color-mix(in srgb, var(--sie-violet) 45%, var(--sie-border)); background: color-mix(in srgb, var(--sie-violet) 6%, var(--sie-card)); }
 .sie-program-results > div.is-excluded { opacity: .62; background: var(--sie-surface); }
-.sie-program-results > div > span { color: var(--sie-violet); font-size: .65rem; font-weight: 900; }
+.sie-program-results > div > span { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--sie-violet) 12%, var(--sie-card)); color: var(--sie-violet); font-size: .65rem; font-weight: 900; }
 .sie-program-results p { display: grid; margin: 0; }
 .sie-program-results p b { font-size: .72rem; }
 .sie-program-results p small { color: var(--sie-muted); font-size: .72rem; }
+.sie-program-results p .sie-program-rank-label { color: var(--sie-text); font-weight: 850; }
 .sie-program-results > div > strong { font-size: .78rem; }
 .sie-response-list { display: grid; gap: .55rem; }
 .sie-response-list article { display: grid; grid-template-columns: 34px 1fr; gap: .8rem; padding: .9rem; border: 1px solid var(--sie-border); border-radius: 12px; background: var(--sie-card); }

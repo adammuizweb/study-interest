@@ -9,6 +9,10 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
+Version `0.9.14` adds bounded, deployment-owned rank labels to the internal
+program evidence list. Every raw direction receives a stable visual position,
+while eligibility and recommendation evidence remains visible and authoritative.
+
 Version `0.9.13` separates the participant-facing session summary from raw
 internal scoring evidence. Eligibility-filtered recommendations and open-profile
 guidance remain visible by default, while ineligible directions and pathways are

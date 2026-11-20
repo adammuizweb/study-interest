@@ -91,6 +91,23 @@ $participantRecommendations = array_values(array_filter(
 $participantDimensions = array_slice(is_array($snapshot['dimensions'] ?? null) ? $snapshot['dimensions'] : [], 0, 3);
 $participantPathways = is_array($snapshot['professional_pathways'] ?? null) ? $snapshot['professional_pathways'] : [];
 $resultText = is_array($snapshot['result_text'] ?? null) ? $snapshot['result_text'] : [];
+$programRankLabels = [];
+if (function_exists('apply_filters')) {
+    $filteredRankLabels = apply_filters('study_interest_admin_program_rank_labels', [], [
+        'surface' => 'session_internal_evidence',
+        'version_code' => (string)$session['version_code'],
+        'schema_version' => $schemaVersion,
+    ], $pdo);
+    if (is_array($filteredRankLabels)) {
+        foreach ($filteredRankLabels as $rank => $label) {
+            $rank = filter_var($rank, FILTER_VALIDATE_INT);
+            $label = is_string($label) ? trim($label) : '';
+            if ($rank !== false && $rank >= 1 && $rank <= 50 && $label !== '' && mb_strlen($label) <= 80) {
+                $programRankLabels[(int)$rank] = $label;
+            }
+        }
+    }
+}
 $resultActions = $schemaVersion >= 3 && is_array($configuration['result_actions'] ?? null)
     ? array_slice(array_values(array_filter($configuration['result_actions'], static fn(mixed $action): bool => is_array($action)
         && is_string($action['label'] ?? null) && trim((string)$action['label']) !== '' && mb_strlen((string)$action['label']) <= 120
@@ -128,14 +145,16 @@ $flagLabels = ['STRAIGHTLINING' => __('Repeated answer pattern'), 'FAST_COMPLETI
       <section class="sie-config-panel sie-dimension-evidence"><div class="sie-panel-title"><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Result profile')) ?></span><h2><?= study_interest_h(__('Dimension scores')) ?></h2></div><p><?= study_interest_h(__('These dimensions support the participant conversation even when no program crosses the recommendation threshold.')) ?></p></div><div class="sie-bar-list is-dimensions"><?php foreach ($dimensions as $index => $row): ?><div class="sie-analytics-bar"><div><span><i><?= str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT) ?></i><b><?= study_interest_h($dimensionLabels[(string)$row['dimension_code']] ?? (string)$row['dimension_code']) ?></b></span><strong><?= number_format((float)$row['final_score'], 1) ?></strong></div><div class="sie-bar-track"><i style="width:<?= study_interest_h(max(0, min(100, (float)$row['final_score']))) ?>%"></i></div></div><?php endforeach; ?></div></section>
       <details class="sie-internal-evidence">
         <summary><div><span class="sie-admin-eyebrow"><?= study_interest_h(__('Internal evidence')) ?></span><h2><?= study_interest_h(__('All raw study-direction scores')) ?></h2><p><?= study_interest_h(__('Counselor and audit data only. This includes pathways and directions excluded by eligibility or recommendation thresholds.')) ?></p></div><span><b><?= study_interest_h(__('Show internal scores')) ?></b><i><?= study_interest_h(__('Hide internal scores')) ?></i></span></summary>
-        <div class="sie-program-results"><?php foreach ($programs as $program): ?><?php
+        <div class="sie-program-results"><?php foreach ($programs as $index => $program): ?><?php
+          $displayRank = $index + 1;
           $eligibilityStatus = (string)$program['eligibility_status'];
           $isRecommended = (int)$program['is_recommended'] === 1;
+          $rankLabel = $programRankLabels[$displayRank] ?? (string)$program['classification'];
           $evidenceLabel = $isRecommended ? __('Shown to participant')
               : ($eligibilityStatus === 'INELIGIBLE' ? __('Not shown: ineligible')
               : ($eligibilityStatus === 'NEEDS_REVIEW' ? __('Not shown: eligibility review required')
               : ((string)$program['recommendation_type'] === 'PROFESSIONAL_PATHWAY' ? __('Not shown: pathway rule not met') : __('Not shown: below recommendation threshold'))));
-        ?><div class="<?= $isRecommended ? 'is-recommended' : ($eligibilityStatus !== 'ELIGIBLE' ? 'is-excluded' : '') ?>"><span><?= $program['rank_position'] !== null ? '#' . (int)$program['rank_position'] : '—' ?></span><p><b><?= study_interest_h($programLabels[(string)$program['program_code']] ?? (string)$program['program_code']) ?></b><small><?= study_interest_h((string)$program['classification']) ?> &middot; <?= study_interest_h($evidenceLabel) ?></small></p><strong><?= number_format((float)$program['score'], 1) ?></strong></div><?php endforeach; ?></div>
+        ?><div class="<?= $isRecommended ? 'is-recommended' : ($eligibilityStatus !== 'ELIGIBLE' ? 'is-excluded' : '') ?>"><span><?= $displayRank ?></span><p><b><?= study_interest_h($programLabels[(string)$program['program_code']] ?? (string)$program['program_code']) ?></b><small class="sie-program-rank-label"><?= study_interest_h($rankLabel) ?></small><small><?= study_interest_h((string)$program['classification']) ?> &middot; <?= study_interest_h($evidenceLabel) ?></small></p><strong><?= number_format((float)$program['score'], 1) ?></strong></div><?php endforeach; ?></div>
       </details>
     <?php endif; ?>
     <?php if ($canViewResponses): ?>
