@@ -9,9 +9,11 @@ reuse Quiz functions, routes, permissions, tables, or request handlers.
 
 ## Current status
 
-Version `0.9.17` adds a compact three-dot session action menu, keeps Correction
-before the Danger zone, improves Final Result contrast, and retains reliable
-manual answer-impact previews in the correction workspace.
+Version `0.9.18` renders the session action icon with CSS dots and makes the
+Participant-facing result label an explicit high-contrast badge.
+
+Version `0.9.17` added a compact three-dot session action menu, kept Correction
+before the Danger zone, and retained reliable manual answer-impact previews.
 
 Version `0.9.16` added a focused Final Result view and kept revision evidence
 available for audit without placing revision metadata in the result summary or

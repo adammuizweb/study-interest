@@ -292,7 +292,8 @@
 .sie-row-actions { position: relative; display: flex; justify-content: flex-end; min-width: 40px; }
 .sie-row-actions-toggle { display: inline-grid; width: 36px; height: 36px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--sie-muted); cursor: pointer; }
 .sie-row-actions-toggle:hover, .sie-row-actions-toggle[aria-expanded="true"] { border-color: var(--sie-border); background: var(--sie-surface); color: var(--sie-text); }
-.sie-row-actions-toggle svg { width: 19px; height: 19px; fill: currentColor; }
+.sie-row-actions-dots { display: inline-flex; align-items: center; gap: 3px; }
+.sie-row-actions-dots i { display: block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 .sie-row-actions-menu { position: fixed; z-index: 1000; display: grid; min-width: 190px; gap: .2rem; padding: .4rem; border: 1px solid var(--sie-border); border-radius: 10px; background: var(--sie-card); box-shadow: 0 12px 30px rgba(16, 22, 47, .16); }
 .sie-row-actions-menu[hidden] { display: none; }
 .sie-row-actions-menu .sie-row-action { display: block; padding: .48rem .55rem; border-radius: 6px; color: var(--sie-text); text-align: left; text-decoration: none; }
@@ -308,7 +309,7 @@
 .sie-session-summary strong { display: block; margin: .35rem 0 .15rem; font-size: 1.45rem; }
 .sie-participant-result { display: grid; gap: 1rem; margin-bottom: 1rem; padding: 1.3rem; overflow: hidden; border-radius: 18px; background: var(--sie-navy); color: #fff; }
 .sie-participant-result__head { display: flex; justify-content: space-between; gap: 1.5rem; align-items: start; }
-.sie-participant-result .sie-admin-eyebrow { color: var(--sie-lime); }
+.sie-participant-result .sie-admin-eyebrow { display: inline-flex; width: max-content; padding: .32rem .5rem; border-radius: 999px; background: #d9ff63; color: #10162f !important; letter-spacing: .1em; }
 .sie-participant-result__head h2 { max-width: 680px; margin: .25rem 0 .4rem; color: #fff; font-size: clamp(1.35rem, 2.4vw, 2rem); letter-spacing: -.035em; line-height: 1.08; }
 .sie-participant-result__head p { max-width: 720px; margin: 0; color: #b8c0db; font-size: .78rem; line-height: 1.55; }
 .sie-participant-result__head > strong { flex: 0 0 auto; padding: .4rem .65rem; border: 1px solid rgba(217, 255, 99, .45); border-radius: 99px; color: var(--sie-lime); font-size: .66rem; }
